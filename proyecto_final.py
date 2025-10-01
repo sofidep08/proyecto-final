@@ -39,3 +39,9 @@ class AgregarUsuario:
         self.guardar_usuario()
         print("Se guardo el usuario con exito")
 
+    def guardar_usuario (self):
+        with open('usuario.txt', 'w', encoding="utf-8") as archivo:
+            for direccion, persona in AgregarUsuario.usuarios.items():
+                archivo.write(f"Direccion: {direccion}| Nombre:{persona['Nombre']}"
+                f" | Numero de casa:{persona['NumCasa']} | DPI:{persona['DPI']} | NIT:{persona['NIT']}"
+                f"| Contador:{persona['Contador']}")
