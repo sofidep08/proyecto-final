@@ -153,3 +153,9 @@ def registrar_lectura():
         print(f"{i}. {d}")
 
     try:
+        opcion = int(input("Seleccione la dirección (1-5): "))
+        direccion = direcciones[opcion-1]
+    except ValueError:
+        print("Opción inválida.")
+        return
+
