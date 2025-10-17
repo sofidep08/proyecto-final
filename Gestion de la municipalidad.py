@@ -109,5 +109,47 @@ def menu_rol(rol):
         print("1. Registrar multa")
     input("\nPresione ENTER para regresar al inicio...")
 
+def menu_lector_contador():
+    empleados = Empleados()
 
+    print("\n---INICIO DE SESIÓN DEL LECTOR DE CONTADOR---")
+    usuario = input("Usuario: ")
+    contrasenia = input("Contraseña: ")
 
+    if empleados.validar_login(usuario, contrasenia):
+        print(f"\n Bienvenido, {empleados.empleados[usuario]['Nombre']}")
+    else:
+        print("Usuario o contraseña incorrectos. Intente de nuevo.")
+        return
+
+    while True:
+        print("\n---LECTOR DE CONTADOR DE AGUA---")
+        print("1. Registrar lectura")
+        print("2. Ver historial")
+        print("3. Regresar")
+
+        opcion = input("Seleccione una opción: ")
+
+        if opcion == "1":
+            registrar_lectura()
+        elif opcion == "2":
+            ver_historial()
+        elif opcion == "3":
+            break
+        else:
+            print("Opción no válida.Intente de nuevo.")
+
+def registrar_lectura():
+    print("\n---REGISTRO DE LECTURA ---")
+    print("Direcciones disponibles:")
+    direcciones = [
+        "Cantón Tzanjuyup",
+        "Cantón Chuistancia",
+        "Cantón Palá",
+        "Cantón Paxán",
+        "Aldea Xeaj"
+    ]
+    for i,d in enumerate(direcciones, start=1):
+        print(f"{i}. {d}")
+
+    try:
