@@ -4,119 +4,124 @@ import sqlite3
 
 DB_NAME = "municipalidad.db"
 
+class DatabaseManager:
+    @staticmethod
+    def connect():
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        return conn
+
 class Usuario:
     def __init__(self, tipo_usuario, contrasena):
         self.tipo_usuario = tipo_usuario
         self.contrasena = contrasena
-
-    @staticmethod
-    def _conn():
-        conn = sqlite3.connect(DB_NAME)
-        conn.row_factory = sqlite3.Row
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS usuarios (
-                clave INTEGER PRIMARY KEY AUTOINCREMENT,
-                tipo_usuario TEXT NOT NULL,
-                contrasena TEXT NOT NULL
-            );
-        """)
-        conn.commit()
-        return conn
+        self.tabla = self.__class__.__name__.lower()
 
     def guardar(self):
-        with self._conn() as conn:
+        with DatabaseManager.connect() as conn:
+            conn.execute(f"""
+                CREATE TABLE IF NOT EXISTS {self.tabla} (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_usuario TEXT NOT NULL,
+                    contrasena TEXT NOT NULL
+                );
+            """)
             conn.execute(
-                "INSERT INTO usuarios (tipo_usuario, contrasena) VALUES (?, ?)",
+                f"INSERT INTO {self.tabla} (tipo_usuario, contrasena) VALUES (?, ?)",
                 (self.tipo_usuario, self.contrasena)
             )
             conn.commit()
 
-    @staticmethod
-    def verificar_usuario(tipo_usuario, contrasena):
-        with Usuario._conn() as conn:
+    @classmethod
+    def verificar_usuario(cls, contrasena):
+        with DatabaseManager.connect() as conn:
+            conn.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {cls.__name__.lower()} (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        tipo_usuario TEXT NOT NULL,
+                        contrasena TEXT NOT NULL
+                    );
+                """)
             cursor = conn.execute(
-                "SELECT * FROM usuarios WHERE tipo_usuario = ? AND contrasena = ?",
-                (tipo_usuario, contrasena)
+                f"SELECT * FROM {cls.__name__.lower()} WHERE contrasena = ?",
+                (contrasena,)
             )
             return cursor.fetchone() is not None
 
+
 #usuarios predeterminados
 def inicializar_usuarios():
-    usuarios_base = [
-        ("Administrador", "123"),
-        ("Lector de contador de agua", "456"),
-        ("Cocodes", "789")
+    usuarios = [
+        (Administrador, "123"),
+        (LectorAgua, "456"),
+        (Cocodes, "789")
     ]
-    with sqlite3.connect(DB_NAME) as conn:
-        conn.row_factory = sqlite3.Row
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS usuarios (
-                clave INTEGER PRIMARY KEY AUTOINCREMENT,
-                tipo_usuario TEXT NOT NULL,
-                contrasena TEXT NOT NULL
-            );
-        """)
-        for tipo, contrasena in usuarios_base:
-            cursor = conn.execute("SELECT * FROM usuarios WHERE tipo_usuario = ?", (tipo,))
-            if cursor.fetchone() is None:
-                conn.execute(
-                    "INSERT INTO usuarios (tipo_usuario, contrasena) VALUES (?, ?)",
-                    (tipo, contrasena)
-                )
-        conn.commit()
+    for clase, contrasena in usuarios:
+        if not clase.verificar_usuario(contrasena):
+            clase(clase.__name__, contrasena).guardar()
+
+class Administrador(Usuario):
+    pass
+
+
+class LectorAgua(Usuario):
+    pass
+
+
+class Cocodes(Usuario):
+    pass
+
 
 
 class Graficos:
     def __init__(self, ventana):
         self.ventana = ventana
+        self.crear_login()
+
+
+    def crear_login(self):
+        for widget in self.ventana.winfo_children():
+            widget.destroy()
+
         self.ventana.title("SAN FRANCISCO LA UNIÓN")
         self.ventana.geometry("800x500")
         self.ventana.resizable(False, False)
 
-        #fondo
         self.bg_photo = tk.PhotoImage(file="fondoss.png")
-        bg_label = tk.Label(ventana, image=self.bg_photo)
+        bg_label = tk.Label(self.ventana, image=self.bg_photo)
         bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
-        # titulo
-        title_label = tk.Label(ventana, text="SAN FRANCISCO LA UNIÓN",
+        title_label = tk.Label(self.ventana, text="SAN FRANCISCO LA UNIÓN",
                                font=("Arial", 20, "bold"),
                                bg="#000000", fg="white")
         title_label.place(relx=0.5, rely=0.1, anchor="center")
 
-        #marco
-        frame = tk.Frame(ventana, bg="#000000", bd=0)
+        frame = tk.Frame(self.ventana, bg="#000000", bd=0)
         frame.place(relx=0.5, rely=0.55, anchor="center")
 
-        # menu de opcioenes de usuario
         tk.Label(frame, text="Usuario", font=("Arial", 10),
                  bg="#000000", fg="white").pack(pady=(0, 5))
 
         self.tipo_usuario = tk.StringVar()
-        opciones = ["Administrador", "Lector de contador de agua", "Cocodes"]
-
+        opciones = ["Administrador", "LectorAgua", "Cocodes"]
         combo = ttk.Combobox(frame, textvariable=self.tipo_usuario,
                              values=opciones, state="readonly", width=25)
         combo.set("Selecciona un usuario")
         combo.pack(pady=5)
 
-        #contraseña
         tk.Label(frame, text="Contraseña", font=("Arial", 10),
                  bg="#000000", fg="white").pack(pady=(10, 5))
 
         self.entry_pass = ttk.Entry(frame, show="*", width=25)
         self.entry_pass.pack(pady=5)
 
-    # boton de inicio de sesion
         login_btn = tk.Button(frame, text="Iniciar Sesión",
                               font=("Arial", 10, "bold"),
                               bg="#2e2e2e", fg="white", width=20,
                               command=self.verificar_login)
         login_btn.pack(pady=15)
 
-    # linea decorativa
-        tk.Frame(ventana, bg="#00aaff", height=3).pack(side="bottom", fill="x")
-
+        tk.Frame(self.ventana, bg="#00aaff", height=3).pack(side="bottom", fill="x")
 
     def verificar_login(self):
         tipo = self.tipo_usuario.get()
@@ -129,10 +134,111 @@ class Graficos:
             messagebox.showwarning("Atención", "Debes ingresar una contraseña.")
             return
 
-        if Usuario.verificar_usuario(tipo, contra):
-            pass
+        clases = {"Administrador": Administrador, "LectorAgua": LectorAgua, "Cocodes": Cocodes}
+        clase_usuario = clases.get(tipo)
+
+        if clase_usuario.verificar_usuario(contra):
+            self.mostrar_interfaz_usuario(tipo)
         else:
             messagebox.showerror("Error", "Contraseña incorrecta")
+
+    def mostrar_interfaz_usuario(self, tipo):
+        for widget in self.ventana.winfo_children():
+            widget.destroy()
+
+        if tipo == "Administrador":
+            AdminPanel(self.ventana, self)
+        elif tipo == "LectorAgua":
+            tk.Label(self.ventana, text="Panel de Lector de Agua", font=("Arial", 16)).pack()
+            tk.Button(self.ventana, text="Cerrar sesión",
+                      command=self.crear_login).pack(pady=20)
+        elif tipo == "Cocodes":
+            tk.Label(self.ventana, text="Panel de Cocodes", font=("Arial", 16)).pack()
+            tk.Button(self.ventana, text="Cerrar sesión",
+                      command=self.crear_login).pack(pady=20)
+
+class AdminPanel:
+    def __init__(self, ventana, app):
+        self.ventana = ventana
+        self.app = app
+        self.crear_panel_admin()
+
+    def crear_panel_admin(self):
+
+        self.menu = tk.Frame(self.ventana, bg="#D3C7A1", width=200, height=500)
+        self.menu.pack(side="left", fill="y")
+
+        tk.Label(self.menu, text="Administrador", bg="#D3C7A1",
+                 font=("Arial", 12, "bold")).pack(pady=10)
+
+        botones = [
+            ("Registrar usuarios", self.mostrar_registro_usuario),
+            ("Cobro de boleto de ornato", self.mostrar_opcion_placeholder),
+            ("Cobro de agua", self.mostrar_opcion_placeholder),
+            ("Cobro de multas", self.mostrar_opcion_placeholder)
+        ]
+
+        for texto, comando in botones:
+            tk.Button(self.menu, text=texto, bg="#C1B68F", width=25,
+                      command=comando).pack(pady=5)
+
+        tk.Button(self.menu, text="Cerrar sesión", bg="#B09E7E",
+                  command=self.cerrar_sesion).pack(side="bottom", pady=20)
+
+
+        self.contenido = tk.Frame(self.ventana, bg="#D3C7A1")
+        self.contenido.pack(side="right", fill="both", expand=True)
+
+        self.mostrar_registro_usuario()
+
+    def mostrar_opcion_placeholder(self):
+        for widget in self.contenido.winfo_children():
+            widget.destroy()
+        tk.Label(self.contenido, text="Funcionalidad en construcción...",
+                 font=("Arial", 14), bg="#D3C7A1").pack(pady=50)
+
+    def mostrar_registro_usuario(self):
+        for widget in self.contenido.winfo_children():
+            widget.destroy()
+
+        tk.Label(self.contenido, text="Registro de usuario",
+                 font=("Arial", 16, "bold"), bg="#D3C7A1").pack(pady=10)
+
+        frame = tk.Frame(self.contenido, bg="#D3C7A1")
+        frame.pack(pady=10)
+
+        campos = ["Nombre", "Dirección", "Número de casa", "DPI", "NIT", "Solicitar servicio de agua"]
+        self.entries = {}
+
+        for campo in campos:
+            tk.Entry(frame, width=30)
+            label = tk.Label(frame, text=campo, bg="#D3C7A1", anchor="w")
+            label.pack(pady=2)
+            entry = tk.Entry(frame, width=40)
+            entry.pack(pady=2)
+            self.entries[campo] = entry
+
+        tk.Label(frame, text="Contador", bg="#D3C7A1", anchor="w").pack(pady=2)
+        contador_cb = ttk.Combobox(frame, values=["Sí", "No"], width=37)
+        contador_cb.pack(pady=2)
+        self.entries["Contador"] = contador_cb
+
+        botones_frame = tk.Frame(frame, bg="#D3C7A1")
+        botones_frame.pack(pady=15)
+
+        tk.Button(botones_frame, text="Regresar", bg="#4a4a4a", fg="white",
+                  command=self.mostrar_opcion_placeholder).pack(side="left", padx=10)
+        tk.Button(botones_frame, text="Guardar", bg="#2e2e2e", fg="white",
+                  command=self.guardar_registro).pack(side="left", padx=10)
+
+    def guardar_registro(self):
+        datos = {campo: entry.get() for campo, entry in self.entries.items()}
+        messagebox.showinfo("Registro guardado", f"Datos registrados:\n{datos}")
+
+    def cerrar_sesion(self):
+        for widget in self.ventana.winfo_children():
+            widget.destroy()
+        self.app.crear_login()
 
 #programa principal
 if __name__ == "__main__":
