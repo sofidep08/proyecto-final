@@ -226,14 +226,47 @@ class AdminPanel:
         botones_frame = tk.Frame(frame, bg="#D3C7A1")
         botones_frame.pack(pady=15)
 
-        tk.Button(botones_frame, text="Regresar", bg="#4a4a4a", fg="white",
-                  command=self.mostrar_opcion_placeholder).pack(side="left", padx=10)
+        tk.Button(botones_frame, text="Limpiar", bg="#4a4a4a", fg="white",
+                  command=self.limpiar_campos).pack(side="left", padx=10)
         tk.Button(botones_frame, text="Guardar", bg="#2e2e2e", fg="white",
                   command=self.guardar_registro).pack(side="left", padx=10)
 
+    def limpiar_campos(self):
+        for entry in self.entries.values():
+            if isinstance(entry, ttk.Combobox):
+                entry.set('')
+            else:
+                entry.delete(0, tk.END)
+
     def guardar_registro(self):
         datos = {campo: entry.get() for campo, entry in self.entries.items()}
-        messagebox.showinfo("Registro guardado", f"Datos registrados:\n{datos}")
+
+        with DatabaseManager.connect() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS usuarios_registrados (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT,
+                    direccion TEXT,
+                    numero_casa TEXT,
+                    dpi TEXT,
+                    nit TEXT,
+                    servicio_agua TEXT,
+                    contador TEXT
+                );
+            """)
+            conn.execute("""
+                INSERT INTO usuarios_registrados 
+                (nombre, direccion, numero_casa, dpi, nit, servicio_agua, contador)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                datos["Nombre"], datos["Dirección"], datos["Número de casa"],
+                datos["DPI"], datos["NIT"], datos["Solicitar servicio de agua"],
+                datos["Contador"]
+            ))
+            conn.commit()
+
+        messagebox.showinfo("Registro guardado", "El usuario ha sido registrado correctamente.")
+        self.limpiar_campos()
 
     def cerrar_sesion(self):
         for widget in self.ventana.winfo_children():
