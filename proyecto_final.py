@@ -84,10 +84,10 @@ class Graficos:
             widget.destroy()
 
         self.ventana.title("SAN FRANCISCO LA UNIÓN")
-        self.ventana.geometry("800x500")
+        self.ventana.geometry("1280x650")
         self.ventana.resizable(False, False)
 
-        self.bg_photo = tk.PhotoImage(file="fondoss.png")
+        self.bg_photo = tk.PhotoImage(file="fondosss.png")
         bg_label = tk.Label(self.ventana, image=self.bg_photo)
         bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
