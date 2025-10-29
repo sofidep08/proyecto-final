@@ -94,27 +94,54 @@ class Graficos:
 
 
     def crear_login(self):
+
+        self.ventana.title("Panel de Administrador - Municipalidad")
+        try:
+            self.ventana.state('zoomed')
+        except:
+            pass
+
         for widget in self.ventana.winfo_children():
             widget.destroy()
+            try:
+                self.ventana.state('zoomed')
+            except:
+                pass
 
         self.ventana.title("SAN FRANCISCO LA UNIÓN")
-        self.ventana.geometry("1280x650")
+        self.ventana.geometry("1100x650")
         self.ventana.resizable(False, False)
+        self.ventana.configure(bg="#F6F6F8")
 
         self.bg_photo = tk.PhotoImage(file="fondosss.png")
         bg_label = tk.Label(self.ventana, image=self.bg_photo)
         bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
-        title_label = tk.Label(self.ventana, text="SAN FRANCISCO LA UNIÓN",
-                               font=("Arial", 20, "bold"),
-                               bg="#000000", fg="white")
-        title_label.place(relx=0.5, rely=0.1, anchor="center")
+        style = ttk.Style()
+        style.theme_use("calm")
+        style.configure("TNotebook", background="#F6F6F8", borderwidth=0)
+        style.configure("TNotebook.Tab", font=("Segoe UI", 10), padding=[12, 8])
+        style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=6)
+        style.configure("TEntry", padding=6)
+        style.configure("Treeview", font=("Segoe UI", 10), rowheight=24)
 
-        frame = tk.Frame(self.ventana, bg="#000000", bd=0)
-        frame.place(relx=0.5, rely=0.55, anchor="center")
 
-        tk.Label(frame, text="Usuario", font=("Arial", 10),
-                 bg="#000000", fg="white").pack(pady=(0, 5))
+        header = tk.Frame(self.ventana, bg="#E9EEF6", height=110)
+        header.pack(fill="x")
+        tk.Label(header, text="SAN FRANCISCO LA UNIÓN", font=("Segoe UI", 28, "bold"),
+                 bg="#E9EEF6", fg="#2D3A4A").place(relx=0.5, rely=0.45, anchor="center")
+
+        card = tk.Frame(self.ventana, bg="white", bd=0)
+        card.place(relx=0.5, rely=0.58, anchor="center")
+
+        tk.Label(card, text="Iniciar sesión", font=("Segoe UI", 16, "bold"),
+                 bg="white", fg="#2D3A4A").pack(pady=(12, 6))
+
+        inner = tk.Frame(card, bg="white")
+        inner.pack(padx=24, pady=12)
+
+        tk.Label(inner, text="Usuario", font=("Segoe UI", 11),
+                 bg="white", fg="#505050").grid(row=0, column=0, sticky="w", pady=(0, 4))
 
         self.tipo_usuario = tk.StringVar()
         opciones = ["Administrador", "LectorAgua", "Cocodes"]
