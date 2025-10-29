@@ -145,30 +145,32 @@ class Graficos:
 
         self.tipo_usuario = tk.StringVar()
         opciones = ["Administrador", "LectorAgua", "Cocodes"]
-        combo = ttk.Combobox(frame, textvariable=self.tipo_usuario,
-                             values=opciones, state="readonly", width=25)
+        combo = ttk.Combobox(inner, textvariable=self.tipo_usuario, values=opciones,
+                             state="readonly", width=34, font=("Segoe UI", 10))
         combo.set("Selecciona un usuario")
-        combo.pack(pady=5)
+        combo.grid(row=1, column=0, pady=(0, 8))
 
-        tk.Label(frame, text="Contraseña", font=("Arial", 10),
-                 bg="#000000", fg="white").pack(pady=(10, 5))
+        tk.Label(inner, text="Contraseña", font=("Segoe UI", 11),
+                 bg="white", fg="#505050").grid(row=2, column=0, sticky="w", pady=(6, 4))
 
-        self.entry_pass = ttk.Entry(frame, show="*", width=25)
-        self.entry_pass.pack(pady=5)
+        self.entry_pass = ttk.Entry(inner, show="*", width=36)
+        self.entry_pass.grid(row=3, column=0)
 
-        login_btn = tk.Button(frame, text="Iniciar Sesión",
-                              font=("Arial", 10, "bold"),
-                              bg="#2e2e2e", fg="white", width=20,
-                              command=self.verificar_login)
-        login_btn.pack(pady=10)
+        btn_frame = tk.Frame(card, bg="white")
+        btn_frame.pack(pady=14)
 
-        salir_btn = tk.Button(frame, text="Salir",
-                              font=("Arial", 10, "bold"),
-                              bg="#a83232", fg="white", width=20,
-                              command=self.ventana.quit)
-        salir_btn.pack(pady=(0, 10))
+        iniciar_btn = ttk.Button(btn_frame, text="Iniciar Sesión", command=self.verificar_login)
+        iniciar_btn.grid(row=0, column=1, padx=6)
 
-        tk.Frame(self.ventana, bg="#00aaff", height=3).pack(side="bottom", fill="x")
+        salir_btn = ttk.Button(btn_frame, text="Salir del programa", command=self._confirm_quit)
+        salir_btn.grid(row=0, column=0, padx=6)
+
+        footer = tk.Frame(self.ventana, bg="#E9EEF6", height=10)
+        footer.pack(fill="x", side="bottom")
+
+    def _confirm_quit(self):
+        if messagebox.askyesno("Salir", "¿Deseas salir del programa?"):
+            self.ventana.quit()
 
     def verificar_login(self):
         tipo = self.tipo_usuario.get()
