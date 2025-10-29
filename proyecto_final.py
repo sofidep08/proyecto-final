@@ -11,6 +11,23 @@ class DatabaseManager:
         conn.row_factory = sqlite3.Row
         return conn
 
+    @staticmethod
+    def init_tables():
+        with DatabaseManager.connect() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS usuarios_registrados (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT,
+                    direccion TEXT,
+                    numero_casa TEXT,
+                    dpi TEXT,
+                    nit TEXT,
+                    servicio_agua TEXT,
+                    contador TEXT
+                );
+            """)
+            conn.commit()
+
 class Usuario:
     def __init__(self, tipo_usuario, contrasena):
         self.tipo_usuario = tipo_usuario
@@ -48,7 +65,6 @@ class Usuario:
             )
             return cursor.fetchone() is not None
 
-
 #usuarios predeterminados
 def inicializar_usuarios():
     usuarios = [
@@ -63,7 +79,6 @@ def inicializar_usuarios():
 class Administrador(Usuario):
     pass
 
-
 class LectorAgua(Usuario):
     pass
 
@@ -71,11 +86,10 @@ class LectorAgua(Usuario):
 class Cocodes(Usuario):
     pass
 
-
-
 class Graficos:
     def __init__(self, ventana):
         self.ventana = ventana
+        DatabaseManager.init_tables()
         self.crear_login()
 
 
@@ -119,7 +133,13 @@ class Graficos:
                               font=("Arial", 10, "bold"),
                               bg="#2e2e2e", fg="white", width=20,
                               command=self.verificar_login)
-        login_btn.pack(pady=15)
+        login_btn.pack(pady=10)
+
+        salir_btn = tk.Button(frame, text="Salir",
+                              font=("Arial", 10, "bold"),
+                              bg="#a83232", fg="white", width=20,
+                              command=self.ventana.quit)
+        salir_btn.pack(pady=(0, 10))
 
         tk.Frame(self.ventana, bg="#00aaff", height=3).pack(side="bottom", fill="x")
 
