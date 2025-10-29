@@ -176,7 +176,7 @@ class Graficos:
         tipo = self.tipo_usuario.get()
         contra = self.entry_pass.get()
 
-        if tipo == "Selecciona un usuario":
+        if tipo == "Selecciona un usuario" or not tipo:
             messagebox.showwarning("Atención", "Debes seleccionar un tipo de usuario.")
             return
         if not contra:
@@ -186,7 +186,7 @@ class Graficos:
         clases = {"Administrador": Administrador, "LectorAgua": LectorAgua, "Cocodes": Cocodes}
         clase_usuario = clases.get(tipo)
 
-        if clase_usuario.verificar_usuario(contra):
+        if clase_usuario and clase_usuario.verificar_usuario(contra):
             self.mostrar_interfaz_usuario(tipo)
         else:
             messagebox.showerror("Error", "Contraseña incorrecta")
@@ -197,20 +197,32 @@ class Graficos:
 
         if tipo == "Administrador":
             AdminPanel(self.ventana, self)
-        elif tipo == "LectorAgua":
-            tk.Label(self.ventana, text="Panel de Lector de Agua", font=("Arial", 16)).pack()
-            tk.Button(self.ventana, text="Cerrar sesión",
-                      command=self.crear_login).pack(pady=20)
-        elif tipo == "Cocodes":
-            tk.Label(self.ventana, text="Panel de Cocodes", font=("Arial", 16)).pack()
-            tk.Button(self.ventana, text="Cerrar sesión",
-                      command=self.crear_login).pack(pady=20)
+        else:
+            # mantener estilo no-admin
+            frame = tk.Frame(self.ventana, bg="#F6F6F8")
+            frame.pack(fill="both", expand=True)
+            tk.Label(frame, text=f"Panel de {tipo}", font=("Segoe UI", 20, "bold"), bg="#F6F6F8").pack(pady=40)
+            ttk.Button(frame, text="Cerrar sesión", command=self.crear_login).pack(pady=12)
 
 class AdminPanel:
     def __init__(self, ventana, app):
         self.ventana = ventana
         self.app = app
+        self.selected_user_id = None
         self.crear_panel_admin()
+
+    def crear_panel_admin(self):
+        self.ventana.title("Panel de Administrador - Municipalidad")
+        try:
+            self.ventana.state('zoomed')
+        except:
+            pass
+
+
+
+
+
+
 
     def crear_panel_admin(self):
 
