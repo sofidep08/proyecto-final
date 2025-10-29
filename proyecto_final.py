@@ -11,6 +11,23 @@ class DatabaseManager:
         conn.row_factory = sqlite3.Row
         return conn
 
+    @staticmethod
+    def init_tables():
+        with DatabaseManager.connect() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS usuarios_registrados (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT,
+                    direccion TEXT,
+                    numero_casa TEXT,
+                    dpi TEXT,
+                    nit TEXT,
+                    servicio_agua TEXT,
+                    contador TEXT
+                );
+            """)
+            conn.commit()
+
 class Usuario:
     def __init__(self, tipo_usuario, contrasena):
         self.tipo_usuario = tipo_usuario
@@ -48,7 +65,6 @@ class Usuario:
             )
             return cursor.fetchone() is not None
 
-
 #usuarios predeterminados
 def inicializar_usuarios():
     usuarios = [
@@ -63,7 +79,6 @@ def inicializar_usuarios():
 class Administrador(Usuario):
     pass
 
-
 class LectorAgua(Usuario):
     pass
 
@@ -71,63 +86,97 @@ class LectorAgua(Usuario):
 class Cocodes(Usuario):
     pass
 
-
-
 class Graficos:
     def __init__(self, ventana):
         self.ventana = ventana
+        DatabaseManager.init_tables()
         self.crear_login()
 
 
     def crear_login(self):
+
+        self.ventana.title("Panel de Administrador - Municipalidad")
+        try:
+            self.ventana.state('zoomed')
+        except:
+            pass
+
         for widget in self.ventana.winfo_children():
             widget.destroy()
+            try:
+                self.ventana.state('zoomed')
+            except:
+                pass
 
         self.ventana.title("SAN FRANCISCO LA UNIÓN")
-        self.ventana.geometry("1280x650")
+        self.ventana.geometry("1100x650")
         self.ventana.resizable(False, False)
+        self.ventana.configure(bg="#F6F6F8")
 
         self.bg_photo = tk.PhotoImage(file="fondosss.png")
         bg_label = tk.Label(self.ventana, image=self.bg_photo)
         bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
-        title_label = tk.Label(self.ventana, text="SAN FRANCISCO LA UNIÓN",
-                               font=("Arial", 20, "bold"),
-                               bg="#000000", fg="white")
-        title_label.place(relx=0.5, rely=0.1, anchor="center")
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("TNotebook", background="#F6F6F8", borderwidth=0)
+        style.configure("TNotebook.Tab", font=("Segoe UI", 10), padding=[12, 8])
+        style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=6)
+        style.configure("TEntry", padding=6)
+        style.configure("Treeview", font=("Segoe UI", 10), rowheight=24)
 
-        frame = tk.Frame(self.ventana, bg="#000000", bd=0)
-        frame.place(relx=0.5, rely=0.55, anchor="center")
 
-        tk.Label(frame, text="Usuario", font=("Arial", 10),
-                 bg="#000000", fg="white").pack(pady=(0, 5))
+        header = tk.Frame(self.ventana, bg="#E9EEF6", height=110)
+        header.pack(fill="x")
+        tk.Label(header, text="SAN FRANCISCO LA UNIÓN", font=("Segoe UI", 28, "bold"),
+                 bg="#E9EEF6", fg="#2D3A4A").place(relx=0.5, rely=0.45, anchor="center")
+
+        card = tk.Frame(self.ventana, bg="white", bd=0)
+        card.place(relx=0.5, rely=0.58, anchor="center")
+
+        tk.Label(card, text="Iniciar sesión", font=("Segoe UI", 16, "bold"),
+                 bg="white", fg="#2D3A4A").pack(pady=(12, 6))
+
+        inner = tk.Frame(card, bg="white")
+        inner.pack(padx=24, pady=12)
+
+        tk.Label(inner, text="Usuario", font=("Segoe UI", 11),
+                 bg="white", fg="#505050").grid(row=0, column=0, sticky="w", pady=(0, 4))
 
         self.tipo_usuario = tk.StringVar()
         opciones = ["Administrador", "LectorAgua", "Cocodes"]
-        combo = ttk.Combobox(frame, textvariable=self.tipo_usuario,
-                             values=opciones, state="readonly", width=25)
+        combo = ttk.Combobox(inner, textvariable=self.tipo_usuario, values=opciones,
+                             state="readonly", width=34, font=("Segoe UI", 10))
         combo.set("Selecciona un usuario")
-        combo.pack(pady=5)
+        combo.grid(row=1, column=0, pady=(0, 8))
 
-        tk.Label(frame, text="Contraseña", font=("Arial", 10),
-                 bg="#000000", fg="white").pack(pady=(10, 5))
+        tk.Label(inner, text="Contraseña", font=("Segoe UI", 11),
+                 bg="white", fg="#505050").grid(row=2, column=0, sticky="w", pady=(6, 4))
 
-        self.entry_pass = ttk.Entry(frame, show="*", width=25)
-        self.entry_pass.pack(pady=5)
+        self.entry_pass = ttk.Entry(inner, show="*", width=36)
+        self.entry_pass.grid(row=3, column=0)
 
-        login_btn = tk.Button(frame, text="Iniciar Sesión",
-                              font=("Arial", 10, "bold"),
-                              bg="#2e2e2e", fg="white", width=20,
-                              command=self.verificar_login)
-        login_btn.pack(pady=15)
+        btn_frame = tk.Frame(card, bg="white")
+        btn_frame.pack(pady=14)
 
-        tk.Frame(self.ventana, bg="#00aaff", height=3).pack(side="bottom", fill="x")
+        iniciar_btn = ttk.Button(btn_frame, text="Iniciar Sesión", command=self.verificar_login)
+        iniciar_btn.grid(row=0, column=1, padx=6)
+
+        salir_btn = ttk.Button(btn_frame, text="Salir del programa", command=self._confirm_quit)
+        salir_btn.grid(row=0, column=0, padx=6)
+
+        footer = tk.Frame(self.ventana, bg="#E9EEF6", height=10)
+        footer.pack(fill="x", side="bottom")
+
+    def _confirm_quit(self):
+        if messagebox.askyesno("Salir", "¿Deseas salir del programa?"):
+            self.ventana.quit()
 
     def verificar_login(self):
         tipo = self.tipo_usuario.get()
         contra = self.entry_pass.get()
 
-        if tipo == "Selecciona un usuario":
+        if tipo == "Selecciona un usuario" or not tipo:
             messagebox.showwarning("Atención", "Debes seleccionar un tipo de usuario.")
             return
         if not contra:
@@ -137,7 +186,7 @@ class Graficos:
         clases = {"Administrador": Administrador, "LectorAgua": LectorAgua, "Cocodes": Cocodes}
         clase_usuario = clases.get(tipo)
 
-        if clase_usuario.verificar_usuario(contra):
+        if clase_usuario and clase_usuario.verificar_usuario(contra):
             self.mostrar_interfaz_usuario(tipo)
         else:
             messagebox.showerror("Error", "Contraseña incorrecta")
@@ -148,114 +197,140 @@ class Graficos:
 
         if tipo == "Administrador":
             AdminPanel(self.ventana, self)
-        elif tipo == "LectorAgua":
-            tk.Label(self.ventana, text="Panel de Lector de Agua", font=("Arial", 16)).pack()
-            tk.Button(self.ventana, text="Cerrar sesión",
-                      command=self.crear_login).pack(pady=20)
-        elif tipo == "Cocodes":
-            tk.Label(self.ventana, text="Panel de Cocodes", font=("Arial", 16)).pack()
-            tk.Button(self.ventana, text="Cerrar sesión",
-                      command=self.crear_login).pack(pady=20)
+        else:
+            # mantener estilo no-admin
+            frame = tk.Frame(self.ventana, bg="#F6F6F8")
+            frame.pack(fill="both", expand=True)
+            tk.Label(frame, text=f"Panel de {tipo}", font=("Segoe UI", 20, "bold"), bg="#F6F6F8").pack(pady=40)
+            ttk.Button(frame, text="Cerrar sesión", command=self.crear_login).pack(pady=12)
 
 class AdminPanel:
     def __init__(self, ventana, app):
         self.ventana = ventana
         self.app = app
+        self.selected_user_id = None
         self.crear_panel_admin()
 
     def crear_panel_admin(self):
+        self.ventana.title("Panel de Administrador - Municipalidad")
+        try:
+            self.ventana.state('zoomed')
+        except:
+            pass
 
-        self.menu = tk.Frame(self.ventana, bg="#D3C7A1", width=200, height=500)
-        self.menu.pack(side="left", fill="y")
+        menu_bar = tk.Menu(self.ventana)
+        self.ventana.config(menu=menu_bar)
 
-        tk.Label(self.menu, text="Administrador", bg="#D3C7A1",
-                 font=("Arial", 12, "bold")).pack(pady=10)
+        menu_usuarios = tk.Menu(menu_bar, tearoff=0)
+        menu_usuarios.add_command(label="Administrar usuarios", command=self._abrir_panel_usuarios)
+        menu_usuarios.add_command(label="Buscar", command=self._abrir_panel_usuarios)
+        menu_bar.add_cascade(label="Usuarios", menu=menu_usuarios)
 
-        botones = [
-            ("Registrar usuarios", self.mostrar_registro_usuario),
-            ("Cobro de boleto de ornato", self.mostrar_opcion_placeholder),
-            ("Cobro de agua", self.mostrar_opcion_placeholder),
-            ("Cobro de multas", self.mostrar_opcion_placeholder)
-        ]
+        menu_ornato = tk.Menu(menu_bar, tearoff=0)
+        menu_ornato.add_command(label="Nuevo",
+                                command=lambda: messagebox.showinfo("Boleta", "Funcionalidad en construcción"))
+        menu_bar.add_cascade(label="Boleta de Ornato", menu=menu_ornato)
 
-        for texto, comando in botones:
-            tk.Button(self.menu, text=texto, bg="#C1B68F", width=25,
-                      command=comando).pack(pady=5)
+        menu_agua = tk.Menu(menu_bar, tearoff=0)
+        menu_agua.add_command(label="Servicio de Agua",
+                              command=lambda: messagebox.showinfo("Agua", "Funcionalidad en construcción"))
+        menu_bar.add_cascade(label="Servicio de Agua", menu=menu_agua)
 
-        tk.Button(self.menu, text="Cerrar sesión", bg="#B09E7E",
-                  command=self.cerrar_sesion).pack(side="bottom", pady=20)
+        menu_multas = tk.Menu(menu_bar, tearoff=0)
+        menu_multas.add_command(label="Multas",
+                                command=lambda: messagebox.showinfo("Multas", "Funcionalidad en construcción"))
+        menu_bar.add_cascade(label="Multas", menu=menu_multas)
+
+        menu_ayuda = tk.Menu(menu_bar, tearoff=0)
+        menu_ayuda.add_command(label="Acerca de", command=lambda: messagebox.showinfo("Acerca de", "Sistema Municipal"))
+        menu_bar.add_cascade(label="Ayuda", menu=menu_ayuda)
+
+        menu_salir = tk.Menu(menu_bar, tearoff=0)
+        menu_salir.add_command(label="Cerrar sesión", command=self.cerrar_sesion)
+        menu_salir.add_command(label="Salir", command=self.ventana.quit)
+        menu_bar.add_cascade(label="Salir", menu=menu_salir)
+
+        self.content = tk.Frame(self.ventana, bg="#F2F5F9")
+        self.content.pack(fill="both", expand=True)
+
+            #bienvenido
+        self._show_welcome()
+
+    def _show_welcome(self):
+        for w in self.content.winfo_children():
+            w.destroy()
+        tk.Label(self.content, text="Bienvenido al Panel de Administración",
+                 font=("Segoe UI", 24, "bold"), bg="#F2F5F9", fg="#2D3A4A").pack(pady=60)
+        tk.Label(self.content, text="Use el submenú para acceder a las opciones de administrador",
+                 font=("Segoe UI", 12), bg="#F2F5F9", fg="#58606A").pack()
+
+    def _abrir_panel_usuarios(self):
+        for w in self.content.winfo_children():
+            w.destroy()
+
+        # registrar, Buscar, Ver todos
+        notebook = ttk.Notebook(self.content)
+        notebook.pack(fill="both", expand=True, padx=18, pady=18)
+
+        # Register
+        register_tab = tk.Frame(notebook, bg="#FFFFFF")
+        notebook.add(register_tab, text="Registrar")
+
+        self._build_register_tab(register_tab)
+
+        # buscar
+        search_tab = tk.Frame(notebook, bg="#FFFFFF")
+        notebook.add(search_tab, text="Buscar")
+        self._build_search_tab(search_tab)
+
+        #todos los usuarios
+        all_tab = tk.Frame(notebook, bg="#FFFFFF")
+        notebook.add(all_tab, text="Ver todos")
+        self._build_all_tab(all_tab)
+
+    def _build_register_tab(self, parent):
+        pad = {"padx": 12, "pady": 6}
+        form = tk.Frame(parent, bg="#FFFFFF")
+        form.pack(padx=20, pady=20, anchor="n")
+
+        labels = ["Nombre", "Dirección", "Número de casa", "DPI", "NIT", "Solicitar servicio de agua"]
+        self._reg_entries = {}
+
+        for i, lbl in enumerate(labels):
+            tk.Label(form, text=lbl, font=("Segoe UI", 10), bg="#FFFFFF").grid(row=i, column=0, sticky="w", **pad)
+            e = ttk.Entry(form, width=50)
+            e.grid(row=i, column=1, **pad)
+            self._reg_entries[lbl] = e
+
+        tk.Label(form, text="Contador", font=("Segoe UI", 10), bg="#FFFFFF").grid(row=len(labels), column=0, sticky="w", **pad)
+        contador_cb = ttk.Combobox(form, values=["Sí", "No"], width=47)
+        contador_cb.grid(row=len(labels), column=1, **pad)
+        self._reg_entries["Contador"] = contador_cb
+
+        btn_frame = tk.Frame(form, bg="#FFFFFF")
+        btn_frame.grid(row=len(labels)+1, column=0, columnspan=2, pady=14)
+
+        ttk.Button(btn_frame, text="Limpiar", command=self._clear_register).grid(row=0, column=0, padx=8)
+        ttk.Button(btn_frame, text="Guardar", command=self._save_register).grid(row=0, column=1, padx=8)
+
+    def _clear_register(self):
+        for e in self._reg_entries.values():
+            try:
+                e.delete(0, tk.END)
+            except:
+                e.set("")
+
+    def _save_register(self):
+        datos = {campo: widget.get() for campo, widget in self._reg_entries.items()}
 
 
-        self.contenido = tk.Frame(self.ventana, bg="#D3C7A1")
-        self.contenido.pack(side="right", fill="both", expand=True)
-
-        self.mostrar_registro_usuario()
-
-    def mostrar_opcion_placeholder(self):
-        for widget in self.contenido.winfo_children():
-            widget.destroy()
-        tk.Label(self.contenido, text="Funcionalidad en construcción...",
-                 font=("Arial", 14), bg="#D3C7A1").pack(pady=50)
-
-    def mostrar_registro_usuario(self):
-        for widget in self.contenido.winfo_children():
-            widget.destroy()
-
-        tk.Label(self.contenido, text="Registro de usuario",
-                 font=("Arial", 16, "bold"), bg="#D3C7A1").pack(pady=10)
-
-        frame = tk.Frame(self.contenido, bg="#D3C7A1")
-        frame.pack(pady=10)
-
-        campos = ["Nombre", "Dirección", "Número de casa", "DPI", "NIT", "Solicitar servicio de agua"]
-        self.entries = {}
-
-        for campo in campos:
-            tk.Entry(frame, width=30)
-            label = tk.Label(frame, text=campo, bg="#D3C7A1", anchor="w")
-            label.pack(pady=2)
-            entry = tk.Entry(frame, width=40)
-            entry.pack(pady=2)
-            self.entries[campo] = entry
-
-        tk.Label(frame, text="Contador", bg="#D3C7A1", anchor="w").pack(pady=2)
-        contador_cb = ttk.Combobox(frame, values=["Sí", "No"], width=37)
-        contador_cb.pack(pady=2)
-        self.entries["Contador"] = contador_cb
-
-        botones_frame = tk.Frame(frame, bg="#D3C7A1")
-        botones_frame.pack(pady=15)
-
-        tk.Button(botones_frame, text="Limpiar", bg="#4a4a4a", fg="white",
-                  command=self.limpiar_campos).pack(side="left", padx=10)
-        tk.Button(botones_frame, text="Guardar", bg="#2e2e2e", fg="white",
-                  command=self.guardar_registro).pack(side="left", padx=10)
-
-    def limpiar_campos(self):
-        for entry in self.entries.values():
-            if isinstance(entry, ttk.Combobox):
-                entry.set('')
-            else:
-                entry.delete(0, tk.END)
-
-    def guardar_registro(self):
-        datos = {campo: entry.get() for campo, entry in self.entries.items()}
+        if not datos["Nombre"] or not datos["Número de casa"] or not datos["DPI"]:
+            messagebox.showwarning("Validación", "Los campos Nombre, Número de casa y DPI son obligatorios.")
+            return
 
         with DatabaseManager.connect() as conn:
             conn.execute("""
-                CREATE TABLE IF NOT EXISTS usuarios_registrados (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre TEXT,
-                    direccion TEXT,
-                    numero_casa TEXT,
-                    dpi TEXT,
-                    nit TEXT,
-                    servicio_agua TEXT,
-                    contador TEXT
-                );
-            """)
-            conn.execute("""
-                INSERT INTO usuarios_registrados 
+                INSERT INTO usuarios_registrados
                 (nombre, direccion, numero_casa, dpi, nit, servicio_agua, contador)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
@@ -265,8 +340,202 @@ class AdminPanel:
             ))
             conn.commit()
 
-        messagebox.showinfo("Registro guardado", "El usuario ha sido registrado correctamente.")
-        self.limpiar_campos()
+        messagebox.showinfo("Registro", "Usuario registrado correctamente.")
+        self._clear_register()
+
+    def _build_search_tab(self, parent):
+        container = tk.Frame(parent, bg="#FFFFFF")
+        container.pack(fill="both", expand=True, padx=12, pady=12)
+
+        search_frame = tk.LabelFrame(container, text="Buscar usuario", bg="#FFFFFF", padx=12, pady=12, font=("Segoe UI", 10))
+        search_frame.pack(fill="x", pady=6)
+
+        tk.Label(search_frame, text="Nombre (parcial):", bg="#FFFFFF").grid(row=0, column=0, sticky="w", padx=6, pady=6)
+        self.search_name = ttk.Entry(search_frame, width=40)
+        self.search_name.grid(row=0, column=1, padx=6, pady=6)
+
+        tk.Label(search_frame, text="Número de casa:", bg="#FFFFFF").grid(row=1, column=0, sticky="w", padx=6, pady=6)
+        self.search_house = ttk.Entry(search_frame, width=40)
+        self.search_house.grid(row=1, column=1, padx=6, pady=6)
+
+        tk.Label(search_frame, text="DPI:", bg="#FFFFFF").grid(row=2, column=0, sticky="w", padx=6, pady=6)
+        self.search_dpi = ttk.Entry(search_frame, width=40)
+        self.search_dpi.grid(row=2, column=1, padx=6, pady=6)
+
+        btns = tk.Frame(search_frame, bg="#FFFFFF")
+        btns.grid(row=3, column=0, columnspan=2, pady=8)
+        ttk.Button(btns, text="Buscar", command=self._perform_search).grid(row=0, column=0, padx=6)
+        ttk.Button(btns, text="Limpiar", command=self._clear_search).grid(row=0, column=1, padx=6)
+
+        self.search_tree = ttk.Treeview(container, columns=("id","nombre","direccion","numero","dpi","nit","servicio","contador"), show="headings")
+        for col, heading in [("id","ID"),("nombre","Nombre"),("direccion","Dirección"),("numero","Número de casa"),
+                             ("dpi","DPI"),("nit","NIT"),("servicio","Servicio agua"),("contador","Contador")]:
+            self.search_tree.heading(col, text=heading)
+            self.search_tree.column(col, width=120 if col!="nombre" else 220, anchor="w")
+        self.search_tree.pack(fill="both", expand=True, padx=12, pady=12)
+
+    def _clear_search(self):
+        self.search_name.delete(0, tk.END)
+        self.search_house.delete(0, tk.END)
+        self.search_dpi.delete(0, tk.END)
+        for i in self.search_tree.get_children():
+            self.search_tree.delete(i)
+
+    def _perform_search(self):
+        name = self.search_name.get().strip()
+        house = self.search_house.get().strip()
+        dpi = self.search_dpi.get().strip()
+
+        query = "SELECT * FROM usuarios_registrados WHERE 1=1"
+        params = []
+
+        if name:
+            query += " AND nombre LIKE ?"
+            params.append(f"%{name}%")
+        if house:
+            query += " AND numero_casa = ?"
+            params.append(house)
+        if dpi:
+            query += " AND dpi = ?"
+            params.append(dpi)
+
+        with DatabaseManager.connect() as conn:
+            cur = conn.execute(query, tuple(params))
+            rows = cur.fetchall()
+
+        for i in self.search_tree.get_children():
+            self.search_tree.delete(i)
+
+        for r in rows:
+            self.search_tree.insert("", "end", values=(r["id"], r["nombre"], r["direccion"],
+                                                       r["numero_casa"], r["dpi"], r["nit"],
+                                                       r["servicio_agua"], r["contador"]))
+
+    def _build_all_tab(self, parent):
+        top = tk.Frame(parent, bg="#FFFFFF")
+        top.pack(fill="x", padx=12, pady=12)
+
+        ttk.Button(top, text="Refrescar lista", command=self._load_all_users).pack(side="left", padx=6)
+        ttk.Button(top, text="Editar seleccionado", command=self._edit_selected).pack(side="left", padx=6)
+        ttk.Button(top, text="Eliminar seleccionado", command=self._delete_selected).pack(side="left", padx=6)
+
+        cols = ("id","nombre","direccion","numero","dpi","nit","servicio","contador")
+        self.all_tree = ttk.Treeview(parent, columns=cols, show="headings")
+        for col, heading in [("id","ID"),("nombre","Nombre"),("direccion","Dirección"),("numero","Número de casa"),
+                             ("dpi","DPI"),("nit","NIT"),("servicio","Servicio agua"),("contador","Contador")]:
+            self.all_tree.heading(col, text=heading)
+            self.all_tree.column(col, width=120 if col!="nombre" else 220, anchor="w")
+        self.all_tree.pack(fill="both", expand=True, padx=12, pady=12)
+
+        self._load_all_users()
+
+    def _load_all_users(self):
+        for i in self.all_tree.get_children():
+            self.all_tree.delete(i)
+        with DatabaseManager.connect() as conn:
+            cur = conn.execute("SELECT * FROM usuarios_registrados ORDER BY nombre COLLATE NOCASE")
+            rows = cur.fetchall()
+        for r in rows:
+            self.all_tree.insert("", "end", values=(r["id"], r["nombre"], r["direccion"],
+                                                    r["numero_casa"], r["dpi"], r["nit"],
+                                                    r["servicio_agua"], r["contador"]))
+
+    def _get_selected_from_tree(self, tree):
+        sel = tree.selection()
+        if not sel:
+            return None
+        item = tree.item(sel[0])
+        vals = item["values"]
+
+        return {
+            "id": vals[0],
+            "nombre": vals[1],
+            "direccion": vals[2],
+            "numero_casa": vals[3],
+            "dpi": vals[4],
+            "nit": vals[5],
+            "servicio_agua": vals[6],
+            "contador": vals[7]
+        }
+
+    def _edit_selected(self):
+        sel = self._get_selected_from_tree(self.all_tree)
+        if not sel:
+            messagebox.showinfo("Editar", "Selecciona un usuario para editar.")
+            return
+        self._open_edit_window(sel)
+
+    def _open_edit_window(self, data):
+        edit_win = tk.Toplevel(self.ventana)
+        edit_win.title("Editar usuario")
+        edit_win.grab_set()
+        pad = {"padx": 10, "pady": 6}
+        tk.Label(edit_win, text="Editar usuario", font=("Segoe UI", 14, "bold")).pack(pady=8)
+
+        frame = tk.Frame(edit_win)
+        frame.pack(padx=12, pady=8)
+
+        fields = ["Nombre","Dirección","Número de casa","DPI","NIT","Solicitar servicio de agua","Contador"]
+        entries = {}
+        values_map = {
+            "Nombre": data["nombre"],
+            "Dirección": data["direccion"],
+            "Número de casa": data["numero_casa"],
+            "DPI": data["dpi"],
+            "NIT": data["nit"],
+            "Solicitar servicio de agua": data["servicio_agua"],
+            "Contador": data["contador"]
+        }
+
+        for i, f in enumerate(fields):
+            tk.Label(frame, text=f).grid(row=i, column=0, sticky="w", **pad)
+            if f == "Contador":
+                cb = ttk.Combobox(frame, values=["Sí","No"], width=40)
+                cb.grid(row=i, column=1, **pad)
+                cb.set(values_map[f] if values_map[f] else "")
+                entries[f] = cb
+            else:
+                e = ttk.Entry(frame, width=42)
+                e.grid(row=i, column=1, **pad)
+                e.insert(0, values_map[f] if values_map[f] else "")
+                entries[f] = e
+
+        def guardar_edicion():
+            nuevo = {f: entries[f].get().strip() for f in fields}
+            if not nuevo["Nombre"] or not nuevo["Número de casa"] or not nuevo["DPI"]:
+                messagebox.showwarning("Validación", "Nombre, Número de casa y DPI son obligatorios.")
+                return
+            with DatabaseManager.connect() as conn:
+                conn.execute("""
+                    UPDATE usuarios_registrados
+                    SET nombre=?, direccion=?, numero_casa=?, dpi=?, nit=?, servicio_agua=?, contador=?
+                    WHERE id=?
+                """, (
+                    nuevo["Nombre"], nuevo["Dirección"], nuevo["Número de casa"],
+                    nuevo["DPI"], nuevo["NIT"], nuevo["Solicitar servicio de agua"],
+                    nuevo["Contador"], data["id"]
+                ))
+                conn.commit()
+            messagebox.showinfo("Editar", "Registro actualizado correctamente.")
+            edit_win.destroy()
+            self._load_all_users()
+
+        btns = tk.Frame(edit_win)
+        btns.pack(pady=8)
+        ttk.Button(btns, text="Guardar cambios", command=guardar_edicion).pack(side="left", padx=8)
+        ttk.Button(btns, text="Cancelar", command=edit_win.destroy).pack(side="left", padx=8)
+
+    def _delete_selected(self):
+        sel = self._get_selected_from_tree(self.all_tree)
+        if not sel:
+            messagebox.showinfo("Eliminar", "Selecciona un usuario para eliminar.")
+            return
+        if messagebox.askyesno("Eliminar", f"¿Eliminar al usuario '{sel['nombre']}' (ID {sel['id']})?"):
+            with DatabaseManager.connect() as conn:
+                conn.execute("DELETE FROM usuarios_registrados WHERE id = ?", (sel["id"],))
+                conn.commit()
+            messagebox.showinfo("Eliminar", "Registro eliminado.")
+            self._load_all_users()
 
     def cerrar_sesion(self):
         for widget in self.ventana.winfo_children():
@@ -275,7 +544,8 @@ class AdminPanel:
 
 #programa principal
 if __name__ == "__main__":
+    DatabaseManager.init_tables()
     inicializar_usuarios()
-    ventana = tk.Tk()
-    grafico = Graficos(ventana)
-    ventana.mainloop()
+    root = tk.Tk()
+    app = Graficos(root)
+    root.mainloop()
