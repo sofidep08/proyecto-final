@@ -70,7 +70,8 @@ def inicializar_usuarios():
     usuarios = [
         (Administrador, "123"),
         (LectorAgua, "456"),
-        (Cocodes, "789")
+        (Cocodes, "789"),
+        (LectorMultas, "012")
     ]
     for clase, contrasena in usuarios:
         if not clase.verificar_usuario(contrasena):
@@ -82,10 +83,11 @@ class Administrador(Usuario):
 class LectorAgua(Usuario):
     pass
 
-
 class Cocodes(Usuario):
     pass
 
+class LectorMultas(Usuario):
+    pass
 class Graficos:
     def __init__(self, ventana):
         self.ventana = ventana
@@ -144,7 +146,7 @@ class Graficos:
                  bg="white", fg="#505050").grid(row=0, column=0, sticky="w", pady=(0, 4))
 
         self.tipo_usuario = tk.StringVar()
-        opciones = ["Administrador", "LectorAgua", "Cocodes"]
+        opciones = ["Administrador", "Lector de Agua", "Cocodes", "Lector de Multas"]
         combo = ttk.Combobox(inner, textvariable=self.tipo_usuario, values=opciones,
                              state="readonly", width=34, font=("Segoe UI", 10))
         combo.set("Selecciona un usuario")
@@ -162,13 +164,13 @@ class Graficos:
         iniciar_btn = ttk.Button(btn_frame, text="Iniciar Sesión", command=self.verificar_login)
         iniciar_btn.grid(row=0, column=1, padx=6)
 
-        salir_btn = ttk.Button(btn_frame, text="Salir del programa", command=self._confirm_quit)
+        salir_btn = ttk.Button(btn_frame, text="Salir del programa", command=self.confirmacionSalir)
         salir_btn.grid(row=0, column=0, padx=6)
 
         footer = tk.Frame(self.ventana, bg="#E9EEF6", height=10)
         footer.pack(fill="x", side="bottom")
 
-    def _confirm_quit(self):
+    def confirmacionSalir(self):
         if messagebox.askyesno("Salir", "¿Deseas salir del programa?"):
             self.ventana.quit()
 
@@ -183,7 +185,7 @@ class Graficos:
             messagebox.showwarning("Atención", "Debes ingresar una contraseña.")
             return
 
-        clases = {"Administrador": Administrador, "LectorAgua": LectorAgua, "Cocodes": Cocodes}
+        clases = {"Administrador": Administrador, "Lector de Agua": LectorAgua, "Cocodes": Cocodes, "Lector de Multas": LectorMultas}
         clase_usuario = clases.get(tipo)
 
         if clase_usuario and clase_usuario.verificar_usuario(contra):
@@ -197,12 +199,73 @@ class Graficos:
 
         if tipo == "Administrador":
             AdminPanel(self.ventana, self)
+        elif tipo == "Lector de Multas":
+            LectorMultasPanel(self.ventana, self)
         else:
             # mantener estilo no-admin
             frame = tk.Frame(self.ventana, bg="#F6F6F8")
             frame.pack(fill="both", expand=True)
             tk.Label(frame, text=f"Panel de {tipo}", font=("Segoe UI", 20, "bold"), bg="#F6F6F8").pack(pady=40)
             ttk.Button(frame, text="Cerrar sesión", command=self.crear_login).pack(pady=12)
+
+class LectorMultasPanel:
+    def __init__(self, ventana, app):
+        self.ventana = ventana
+        self.app = app
+        self.selected_user_id = None
+        self.crear_panel_lectorMultas()
+
+    def crear_panel_lectorMultas(self):
+        self.ventana.title("Panel de Lector de Agua - Municipalidad")
+        try:
+            self.ventana.state('zoomed')
+        except:
+            pass
+        menu_bar = tk.Menu(self.ventana)
+        self.ventana.config(menu=menu_bar)
+
+        menu_multa = tk.Menu(menu_bar, tearoff=0)
+        menu_multa.add_command(label="Generar Multa", command=self.generarMultas)
+        menu_bar.add_cascade(label="Multas", menu=menu_multa)
+
+        menu_ayuda = tk.Menu(menu_bar, tearoff=0)
+        menu_ayuda.add_command(label="Acerca de", command=lambda: messagebox.showinfo("Acerca de", "Sistema Municipal"))
+        menu_bar.add_cascade(label="Ayuda", menu=menu_ayuda)
+
+        menu_salir = tk.Menu(menu_bar, tearoff=0)
+        menu_salir.add_command(label="Cerrar sesión", command=self.cerrar_sesion)
+        menu_salir.add_command(label="Salir", command=self.ventana.quit)
+        menu_bar.add_cascade(label="Salir", menu=menu_salir)
+
+        self.content = tk.Frame(self.ventana, bg="#F2F5F9")
+        self.content.pack(fill="both", expand=True)
+
+        # default welcome
+        self.bienvenidaLectorMultas()
+
+
+    def bienvenidaLectorMultas (self):
+        for w in self.content.winfo_children():
+            w.destroy()
+        tk.Label(self.content, text="Bienvenido al Panel del Lector de Multas",
+                 font=("Segoe UI", 24, "bold"), bg="#F2F5F9", fg="#2D3A4A").pack(pady=60)
+        tk.Label(self.content, text="Use el submenú para acceder a las opciones",
+                 font=("Segoe UI", 12), bg="#F2F5F9", fg="#58606A").pack()
+    def _abrir_panel_usuarios(self):
+        for w in self.content.winfo_children():
+            w.destroy()
+
+    def generarMultas(self):
+        for w in self.content.winfo_children():
+            w.destroy()
+
+
+    def cerrar_sesion(self):
+        for widget in self.ventana.winfo_children():
+            widget.destroy()
+        self.app.crear_login()
+
+
 
 class AdminPanel:
     def __init__(self, ventana, app):
@@ -255,9 +318,9 @@ class AdminPanel:
         self.content.pack(fill="both", expand=True)
 
         # default welcome
-        self._show_welcome()
+        self.bienvenidaAdmin()
 
-    def _show_welcome(self):
+    def bienvenidaAdmin (self):
         for w in self.content.winfo_children():
             w.destroy()
         tk.Label(self.content, text="Bienvenido al Panel de Administración",
@@ -277,52 +340,52 @@ class AdminPanel:
         register_tab = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(register_tab, text="Registrar")
 
-        self._build_register_tab(register_tab)
+        self.Registrar(register_tab)
 
         # Search tab
         search_tab = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(search_tab, text="Buscar")
-        self._build_search_tab(search_tab)
+        self.guardar(search_tab)
 
         # All users tab
         all_tab = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(all_tab, text="Ver todos")
         self._build_all_tab(all_tab)
 
-    def _build_register_tab(self, parent):
+    def Registrar (self, parent):
         pad = {"padx": 12, "pady": 6}
         form = tk.Frame(parent, bg="#FFFFFF")
         form.pack(padx=20, pady=20, anchor="n")
 
         labels = ["Nombre", "Dirección", "Número de casa", "DPI", "NIT", "Solicitar servicio de agua"]
-        self._reg_entries = {}
+        self.registros = {}
 
         for i, lbl in enumerate(labels):
             tk.Label(form, text=lbl, font=("Segoe UI", 10), bg="#FFFFFF").grid(row=i, column=0, sticky="w", **pad)
             e = ttk.Entry(form, width=50)
             e.grid(row=i, column=1, **pad)
-            self._reg_entries[lbl] = e
+            self.registros[lbl] = e
 
         tk.Label(form, text="Contador", font=("Segoe UI", 10), bg="#FFFFFF").grid(row=len(labels), column=0, sticky="w", **pad)
         contador_cb = ttk.Combobox(form, values=["Sí", "No"], width=47)
         contador_cb.grid(row=len(labels), column=1, **pad)
-        self._reg_entries["Contador"] = contador_cb
+        self.registros["Contador"] = contador_cb
 
         btn_frame = tk.Frame(form, bg="#FFFFFF")
         btn_frame.grid(row=len(labels)+1, column=0, columnspan=2, pady=14)
 
-        ttk.Button(btn_frame, text="Limpiar", command=self._clear_register).grid(row=0, column=0, padx=8)
-        ttk.Button(btn_frame, text="Guardar", command=self._save_register).grid(row=0, column=1, padx=8)
+        ttk.Button(btn_frame, text="Limpiar", command=self.limpiar).grid(row=0, column=0, padx=8)
+        ttk.Button(btn_frame, text="Guardar", command=self.guardar).grid(row=0, column=1, padx=8)
 
-    def _clear_register(self):
-        for e in self._reg_entries.values():
+    def limpiar(self):
+        for e in self.registros.values():
             try:
                 e.delete(0, tk.END)
             except:
                 e.set("")
 
-    def _save_register(self):
-        datos = {campo: widget.get() for campo, widget in self._reg_entries.items()}
+    def guardar(self):
+        datos = {campo: widget.get() for campo, widget in self.registros.items()}
         # Basic validation
         if not datos["Nombre"] or not datos["Número de casa"] or not datos["DPI"]:
             messagebox.showwarning("Validación", "Los campos Nombre, Número de casa y DPI son obligatorios.")
@@ -341,9 +404,9 @@ class AdminPanel:
             conn.commit()
 
         messagebox.showinfo("Registro", "Usuario registrado correctamente.")
-        self._clear_register()
+        self.limpiar()
 
-    def _build_search_tab(self, parent):
+    def buscar(self, parent):
         container = tk.Frame(parent, bg="#FFFFFF")
         container.pack(fill="both", expand=True, padx=12, pady=12)
 
