@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import sqlite3
 
-from plantilla import ventana
 
 DB_NAME = "municipalidad.db"
 
@@ -123,11 +122,11 @@ class Graficos:
 
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("TNotebook", background="#F6F6F8", borderwidth=0)
-        style.configure("TNotebook.Tab", font=("Segoe UI", 10), padding=[12, 8])
-        style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=6)
+        style.configure("TNotebook", background="#899AA1", borderwidth=0)
+        style.configure("TNotebook.Tab", font=("Segoe UI", 15), padding=[12, 8])
+        style.configure("TButton", font=("Segoe UI", 12, "bold"), padding=6)
         style.configure("TEntry", padding=6)
-        style.configure("Treeview", font=("Segoe UI", 10), rowheight=24)
+        style.configure("Treeview", font=("Segoe UI", 12), rowheight=24)
 
 
         header = tk.Frame(self.ventana, bg="#E9EEF6", height=110)
@@ -144,17 +143,17 @@ class Graficos:
         inner = tk.Frame(card, bg="white")
         inner.pack(padx=24, pady=12)
 
-        tk.Label(inner, text="Usuario", font=("Segoe UI", 11),
+        tk.Label(inner, text="Usuario", font=("Segoe UI", 14),
                  bg="white", fg="#505050").grid(row=0, column=0, sticky="w", pady=(0, 4))
 
         self.tipo_usuario = tk.StringVar()
         opciones = ["Administrador", "Lector de Agua", "Cocodes", "Lector de Multas"]
         combo = ttk.Combobox(inner, textvariable=self.tipo_usuario, values=opciones,
-                             state="readonly", width=34, font=("Segoe UI", 10))
+                             state="readonly", width=34, font=("Segoe UI", 13))
         combo.set("Selecciona un usuario")
         combo.grid(row=1, column=0, pady=(0, 8))
 
-        tk.Label(inner, text="Contraseña", font=("Segoe UI", 11),
+        tk.Label(inner, text="Contraseña", font=("Segoe UI", 14),
                  bg="white", fg="#505050").grid(row=2, column=0, sticky="w", pady=(6, 4))
 
         self.entry_pass = ttk.Entry(inner, show="*", width=36)
