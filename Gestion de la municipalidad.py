@@ -1,3 +1,54 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import sqlite3
+from datetime import datetime, date
+
+DB_NAME = "municipalidad.db"
+
+class DatabaseManager:
+    @staticmethod
+    def connect():
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    @staticmethod
+    def setup():
+        with DatabaseManager.connect() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS credenciales (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo_usuario TEXT NOT NULL,
+                contrasena TEXT NOT NULL
+            );
+        """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS clientes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                dpi TEXT,
+                direccion TEXT,
+                numero_casa TEXT,
+                tipo TEXT NOT NULL CHECK(tipo IN ('fijo','contador')),
+                total_mes REAL DEFAULT 12.0,      -- valor mensual para agua fija
+                ultimo_pago TEXT,                -- fecha del último pago (YYYY-MM-DD)
+                mora REAL DEFAULT 0.0
+            );
+        """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS lecturas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cliente_id INTEGER NOT NULL,
+                    consumo REAL NOT NULL,
+                    total_pagar REAL NOT NULL,
+                    fecha TEXT NOT NULL,
+                    pagado INTEGER DEFAULT 0,
+                    fecha_pago TEXT,
+                    FOREIGN KEY(cliente_id) REFERENCES clientes(id)
+                );
+            """)
+            conn.commit()
+
 class Empleados:
     def __init__(self):
         self.empleados = {}
