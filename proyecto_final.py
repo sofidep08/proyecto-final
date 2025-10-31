@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import sqlite3
 
+from plantilla import ventana
+
 DB_NAME = "municipalidad.db"
 
 class DatabaseManager:
@@ -320,7 +322,7 @@ class AdminPanel:
         # default welcome
         self.bienvenidaAdmin()
 
-    def bienvenidaAdmin (self):
+    def bienvenidaAdmin(self):
         for w in self.content.winfo_children():
             w.destroy()
         tk.Label(self.content, text="Bienvenido al Panel de Administración",
@@ -340,19 +342,19 @@ class AdminPanel:
         register_tab = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(register_tab, text="Registrar")
 
-        self.Registrar(register_tab)
+        self.registrar(register_tab)
 
         # Search tab
         search_tab = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(search_tab, text="Buscar")
-        self.guardar(search_tab)
+        self.buscar(search_tab)
 
         # All users tab
         all_tab = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(all_tab, text="Ver todos")
-        self._build_all_tab(all_tab)
+        self.buscar(all_tab)
 
-    def Registrar (self, parent):
+    def registrar(self, parent):
         pad = {"padx": 12, "pady": 6}
         form = tk.Frame(parent, bg="#FFFFFF")
         form.pack(padx=20, pady=20, anchor="n")
@@ -406,7 +408,7 @@ class AdminPanel:
         messagebox.showinfo("Registro", "Usuario registrado correctamente.")
         self.limpiar()
 
-    def buscar(self, parent):
+    def  _build_search_tab(self, parent):
         container = tk.Frame(parent, bg="#FFFFFF")
         container.pack(fill="both", expand=True, padx=12, pady=12)
 
@@ -475,7 +477,7 @@ class AdminPanel:
                                                        r["numero_casa"], r["dpi"], r["nit"],
                                                        r["servicio_agua"], r["contador"]))
 
-    def _build_all_tab(self, parent):
+    def buscar(self, parent):
         top = tk.Frame(parent, bg="#FFFFFF")
         top.pack(fill="x", padx=12, pady=12)
 
