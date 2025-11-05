@@ -101,6 +101,17 @@ class Agua():
 
     def calcular_mora_fijo(cliente_now):
         total_mes = float(cliente_row["total_mes"] or 12.0)
+        ultimo = cliente_row["ultimo_pago"]
+        meses = meses_transcurridos(ultimo)
+        if meses <= 0:
+            meses = 1
+        mora = meses * 25.0
+        total_deuda = meses * total_mes + mora
+        return {
+            "meses": meses,
+            "mora": mora,
+            "total_deuda": total_deuda
+        }
 
 class Graficos:
     def __init__(self, ventana):
@@ -557,6 +568,10 @@ class AdminPanel:
         for widget in self.ventana.winfo_children():
             widget.destroy()
         self.app.crear_login()
+
+class LoginApp:
+    def __init__(self, root):
+
 
 #programa principal
 if __name__ == "__main__":
