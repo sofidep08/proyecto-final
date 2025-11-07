@@ -22,7 +22,6 @@ class DatabaseManager:
 
     @staticmethod
     def init_tables():
-        """Tables used by the GUI (usuarios_registrados used by admin panel)."""
         with DatabaseManager.connect() as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS usuarios_registrados (
