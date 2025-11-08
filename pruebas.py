@@ -35,7 +35,6 @@ class DatabaseManager:
                     contador TEXT
                 );
             """)
-
             conn.commit()
 
     @staticmethod
@@ -74,10 +73,10 @@ class DatabaseManager:
                     );
                 """)
                 conn.execute("""
-                    CREATE TABLE IF NOT EXISTS credenciales (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tipo_usuario TEXT NOT NULL,
-                    contrasena TEXT NOT NULL,
+                        CREATE TABLE IF NOT EXISTS credenciales (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        tipo_usuario TEXT NOT NULL,
+                        contrasena TEXT NOT NULL
                     );
                 """)
                 conn.commit()
@@ -105,12 +104,9 @@ class Usuario:
             )
             return cursor.fetchone() is not None
 
-
 class Administrador(Usuario): pass
 class LectorAgua(Usuario): pass
 class Cocodes(Usuario): pass
-
-
 
 def inicializar_credenciales():
     with DatabaseManager.connect() as conn:
@@ -560,8 +556,8 @@ class AdminPanel:
                              ("dpi","DPI"),("nit","NIT"),("servicio","Servicio agua"),("contador","Contador")]:
             self.all_tree.heading(col, text=heading)
             self.all_tree.column(col, width=120 if col!="nombre" else 220, anchor="w")
-        self.all_tree.pack(fill="both", expand=True, padx=12, pady=12)
 
+        self.all_tree.pack(fill="both", expand=True, padx=12, pady=12)
         self._load_all_users()
 
     def _load_all_users(self):
@@ -681,15 +677,20 @@ class AdminPanel:
         for w in self.content.winfo_children():
             w.destroy()
 
-        titulo = tk.Label(self.content, text="Sistema de cobro - Servicio de Agua", font=("Segoe UI", 20, "bold"), bg="#F2F5F9", fg="#2D3A4A")
+        titulo = tk.Label(self.content, text="Sistema de Cobro - Servicio de Agua",
+                          font=("Segoe UI", 20, "bold"), bg="#F2F5F9", fg="#2D3A4A")
         titulo.pack(pady=20)
 
+        # Frame principal
         main_frame = tk.Frame(self.content, bg="#FFFFFF", relief="raised", bd=2)
-        main_frame.pack(fil="both", expand=True, padx=20, pady=10)
+        main_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
-        search_frame = tk.LabelFrame(main_frame, text="Buscar Cliente", font=("Segoe UI", 12, "bold"), bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
+        # Sección de búsqueda
+        search_frame = tk.LabelFrame(main_frame, text="Buscar Cliente", font=("Segoe UI", 12, "bold"),
+                                     bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
         search_frame.pack(fill="x", padx=20, pady=20)
 
+        # Campos de búsqueda
         tk.Label(search_frame, text="Nombre:", font=("Segoe UI", 10), bg="#FFFFFF").grid(row=0, column=0, sticky="w",
                                                                                          padx=5, pady=5)
         self.agua_nombre = ttk.Entry(search_frame, width=30, font=("Segoe UI", 10))
@@ -700,118 +701,127 @@ class AdminPanel:
         self.agua_dpi = ttk.Entry(search_frame, width=20, font=("Segoe UI", 10))
         self.agua_dpi.grid(row=0, column=3, padx=10, pady=5)
 
+        # Botones de búsqueda
+        btn_frame = tk.Frame(search_frame, bg="#FFFFFF")
+        btn_frame.grid(row=1, column=0, columnspan=4, pady=15)
+
         ttk.Button(btn_frame, text="🔍 Buscar Cliente", command=self._buscar_cliente_agua).pack(side="left", padx=10)
         ttk.Button(btn_frame, text="🔄 Limpiar", command=self._limpiar_busqueda_agua).pack(side="left", padx=10)
 
-        info_frame = tk.LabelFrame(main_frame, text="Información del Cliente", font=("Segoe UI", 12, "bold"), bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
+        info_frame = tk.LabelFrame(main_frame, text="Información del Cliente", font=("Segoe UI", 12, "bold"),
+                                   bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
         info_frame.pack(fill="x", padx=20, pady=10)
 
-        self.info_cliente_label = tk.Label(info_frame, text="Detalles de Cobro", font=("Segoe UI", 12, "bold"),
-                                  bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
+        self.info_cliente_label = tk.Label(info_frame, text="Seleccione un cliente para ver su información",
+                                           font=("Segoe UI", 11), bg="#FFFFFF", fg="#666666")
         self.info_cliente_label.pack(pady=10)
 
-        cobro_frame = tk.LabelFrame(main_frame, text="Detalles de Cobro", font=("Segoe UI", 12, "bold"), bg="#FFFFFF", fg="2D3A4A", padx=15, pady=15)
+        cobro_frame = tk.LabelFrame(main_frame, text="Detalles de Cobro", font=("Segoe UI", 12, "bold"),
+                                    bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
         cobro_frame.pack(fill="x", padx=20, pady=10)
 
         self.deuda_label = tk.Label(cobro_frame, text="", font=("Segoe UI", 12, "bold"), bg="#FFFFFF")
         self.deuda_label.pack(pady=10)
 
-        self.btn_cobro = ttk.Button(cobro_frame, text="💰 REALIZAR COBRO", command=self._realizar_cobro_agua, state="disabled")
+        self.btn_cobro = ttk.Button(cobro_frame, text="💰 REALIZAR COBRO",
+                                    command=self._realizar_cobro_agua, state="disabled")
         self.btn_cobro.pack(pady=15)
 
-        historial_frame = tk.LabelFrame(main_frame, text="Historial de Pagos", font=("Segoe UI", 12, "bold"), bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
-        historial_frame.pack(fill="both", padx=20, pady=10)
+        historial_frame = tk.LabelFrame(main_frame, text="Historial de Pagos", font=("Segoe UI", 12, "bold"),
+                                        bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
+        historial_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
-        columns =("Fecha", "Tipo", "Consumo", "Monto", "Estado")
-        self.historial_tree = ttk.treeview(historial_frame, columns=columns, show="headings", height=8)
+        columns = ("Fecha", "Tipo", "Consumo", "Monto", "Estado")
+        self.historial_tree = ttk.Treeview(historial_frame, columns=columns, show="headings", height=8)
 
         for col in columns:
             self.historial_tree.heading(col, text=col)
             self.historial_tree.column(col, width=120, anchor="center")
 
-            scrollbar = ttk.Scrollbar(historial_frame, orient="vertical", command=self.historial_tree.yview)
-            self.historial_tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar = ttk.Scrollbar(historial_frame, orient="vertical", command=self.historial_tree.yview)
+        self.historial_tree.configure(yscrollcommand=scrollbar.set)
 
-            self.historial_tree.pack(side="left", fill="both", expand=True)
-            scrollbar.pack(side="right", fill="y")
+        self.historial_tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
-        def _buscar_cliente_agua(self):
-            nombre = self.agua_nombre.get().strip()
-            dpi = self.agua_dpi.get().strip()
+    def _buscar_cliente_agua(self):
+        nombre = self.agua_nombre.get().strip()
+        dpi = self.agua_dpi.get().strip()
 
-            if not nombre and not dpi:
-                messagebox.showwarning("Atención", "Ingrese al menos el nombre o DPI del cliente")
-                return
+        if not nombre and not dpi:
+            messagebox.showwarning("Atención", "Ingrese al menos el nombre o DPI del cliente")
+            return
 
-            with DatabaseManager.connect() as conn:
-                query = "SELECT * FROM clientes WHERE nombre 1=1"
-                params = []
+        with DatabaseManager.connect() as conn:
+            query = "SELECT * FROM clientes WHERE 1=1"
+            params = []
 
-                if nombre:
-                    query += "AND nombre LIKE ?"
-                    params.append(f"%{nombre}%")
-                if dpi:
-                    query += "AND dpi = ?"
-                    params.append(dpi)
+            if nombre:
+                query += " AND nombre LIKE ?"
+                params.append(f"%{nombre}%")
+            if dpi:
+                query += " AND dpi = ?"
+                params.append(dpi)
 
-                cliente = conn.execute(query, params).fetchone()
+            cliente = conn.execute(query, params).fetchone()
 
-            if not cliente:
-                messagebox.showwarning("No encontrado", "No se encontró ningún cliente con esos datos")
-                self._limpiar_info_cliente()
-                return
+        if not cliente:
+            messagebox.showwarning("No encontrado", "No se encontró ningún cliente con esos datos")
+            self._limpiar_info_cliente()
+            return
 
-            self.cliente_selccionado = cliente
-            self._mostrar_info_cliente(cliente)
-            self._calcular_deuda_cliente(cliente)
-            self._cargar_historial_pagos(cliente["id"])
+        self.cliente_seleccionado = cliente
+        self._mostrar_info_cliente(cliente)
+        self._calcular_deuda_cliente(cliente)
+        self._cargar_historial_pagos(cliente["id"])
 
-        def _mostrar_info_cliente(slef, cliente):
-            Nombre: {cliente['nombre']}
-            DPI: {cliente['dpi']}
-            Direccion: {cliente['direccion'] or 'No espeficada'}
-            Casa  #: {cliente['numero_casa']}
-            Tipo de servicio: {'Con contador' if cliente['tipo'] == 'contador' else 'Tarifa fija'}
+    def _mostrar_info_cliente(self, cliente):
+        info_text = f"""
+                👤 Nombre: {cliente['nombre']}
+                🆔 DPI: {cliente['dpi']}
+                🏠 Dirección: {cliente['direccion'] or 'No especificada'}
+                🏘️ Casa #: {cliente['numero_casa']}
+                📊 Tipo de servicio: {'Con contador' if cliente['tipo'] == 'contador' else 'Tarifa fija'}
+                """
 
-            self.info_cliente_label.config(text=info_text, fg="#2D3A4A", justify="left")
+        self.info_cliente_label.config(text=info_text, fg="#2D3A4A", justify="left")
 
-            def _calcular_deuda_cliente(self, cliente):
-                with DatabaseManager.connect() as conn:
-                    if cliente["tipo"] == "contador":
-                        lecturas = conn.execute("""
-                                SELECT * FROM lecturas 
-                                WHERE cliente_id = ? AND pagado = 0
-                                ORDER BY fecha DESC
-                            """, (cliente["id"],)).fetchall()
+    def _calcular_deuda_cliente(self, cliente):
+        with DatabaseManager.connect() as conn:
+            if cliente["tipo"] == "contador":
+                lecturas = conn.execute("""
+                            SELECT * FROM lecturas 
+                            WHERE cliente_id = ? AND pagado = 0
+                            ORDER BY fecha DESC
+                        """, (cliente["id"],)).fetchall()
 
-                        total_deuda = 0
-                        detalles = []
+                total_deuda = 0
+                detalles = []
 
-                        for lectura in lecturas:
-                            meses_mora = self._calcular_meses_transcurridos(lectura["fecha"])
-                            mora = meses_mora * 25.0
-                            total_lectura = float(lectura["total_pagar"]) + mora
-                            total_deuda += total_lectura
+                for lectura in lecturas:
+                    meses_mora = self._calcular_meses_transcurridos(lectura["fecha"])
+                    mora = meses_mora * 25.0  # Q25 por mes de mora
+                    total_lectura = float(lectura["total_pagar"]) + mora
+                    total_deuda += total_lectura
 
-                            detalles.append(
-                                f"• Lectura {lectura['fecha']}: Q{lectura['total_pagar']:.2f} + Mora Q{mora:.2f}")
+                    detalles.append(f"• Lectura {lectura['fecha']}: Q{lectura['total_pagar']:.2f} + Mora Q{mora:.2f}")
 
-                    else:
-                        ultimo_pago = cliente["ultimo_pago"]
-                        meses_sin_pagar = self._calcular_meses_transcurridos(ultimo_pago) if ultimo_pago else 1
-                        if meses_sin_pagar <= 0:
-                            meses_sin_pagar = 1
+            else:
+                ultimo_pago = cliente["ultimo_pago"]
+                meses_sin_pagar = self._calcular_meses_transcurridos(ultimo_pago) if ultimo_pago else 1
+                if meses_sin_pagar <= 0:
+                    meses_sin_pagar = 1
 
-                        tarifa_mensual = float(cliente["total_mes"] or 12.0)
-                        mora_total = meses_sin_pagar * 25.0
-                        total_deuda = (meses_sin_pagar * tarifa_mensual) + mora_total
+                tarifa_mensual = float(cliente["total_mes"] or 12.0)
+                mora_total = meses_sin_pagar * 25.0
+                total_deuda = (meses_sin_pagar * tarifa_mensual) + mora_total
 
-                        detalles = [
-                            f"• Tarifa mensual: Q{tarifa_mensual:.2f}",
-                            f"• Meses sin pagar: {meses_sin_pagar}",
-                            f"• Subtotal: Q{meses_sin_pagar * tarifa_mensual:.2f}",
-                            f"• Mora total: Q{mora_total:.2f}"
-                        ]
+                detalles = [
+                    f"• Tarifa mensual: Q{tarifa_mensual:.2f}",
+                    f"• Meses sin pagar: {meses_sin_pagar}",
+                    f"• Subtotal: Q{meses_sin_pagar * tarifa_mensual:.2f}",
+                    f"• Mora total: Q{mora_total:.2f}"
+                ]
 
     def _cargar_historial_pagos(self, cliente_id):
         for item in self.historial_tree.get_children():
@@ -839,143 +849,62 @@ class AdminPanel:
                 ))
 
 
-
-class ServicioAguaAdmin(ttk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.usuario = None
-
-        # Formulario de búsqueda
-        tk.Label(self, text="Nombre:").grid(row=0, column=0, padx=5, pady=5)
-        self.entry_nombre = tk.Entry(self)
-        self.entry_nombre.grid(row=0, column=1, padx=5, pady=5)
-
-        tk.Label(self, text="DPI:").grid(row=0, column=2, padx=5, pady=5)
-        self.entry_dpi = tk.Entry(self)
-        self.entry_dpi.grid(row=0, column=3, padx=5, pady=5)
-
-        tk.Button(self, text="Buscar", command=self.buscar_cliente).grid(row=0, column=4, padx=5, pady=5)
-
-        # Tabla de resultados
-        self.tree = ttk.Treeview(self, columns=("ID", "Nombre", "DPI", "Mora", "Total Deuda"), show="headings")
-        for col in self.tree["columns"]:
-            self.tree.heading(col, text=col)
-        self.tree.grid(row=1, column=0, columnspan=5, padx=5, pady=5)
-
-        # Botón para generar boleta
-        tk.Button(self, text="Generar Boleta", command=self.generar_boleta).grid(row=2, column=0, padx=5, pady=5)
-
-    def buscar_cliente(self):
-        nombre = self.entry_nombre.get()
-        dpi = self.entry_dpi.get()
-        self.tree.delete(*self.tree.get_children())
-
-        with DatabaseManager.connect() as conn:
-            query = "SELECT * FROM clientes WHERE nombre LIKE ? AND dpi LIKE ?"
-            rows = conn.execute(query, (f"%{nombre}%", f"%{dpi}%")).fetchall()
-
-        for row in rows:
-            mora = self.calcular_mora(row)
-            total_deuda = (row["total_mes"] or 12.0) + mora
-            self.tree.insert("", "end", values=(row["id"], row["nombre"], row["dpi"], mora, total_deuda))
-
-    def calcular_mora(self, cliente_row):
-        # Calcula la mora según la fecha del último pago
-        ultimo_pago = cliente_row["ultimo_pago"]
-        if not ultimo_pago:
-            return 0
-        fecha = datetime.strptime(ultimo_pago, "%Y-%m-%d").date()
-        hoy = date.today()
-        meses = (hoy.year - fecha.year) * 12 + (hoy.month - fecha.month)
-        mora = max(0, meses) * 25.0
-        return mora
-
-    def generar_boleta(self):
-        item = self.tree.selection()
-        if not item:
-            messagebox.showwarning("Aviso", "Seleccione un cliente")
+    def _realizar_cobro_agua(self):
+        if not self.cliente_seleccionado:
+            messagebox.showwarning("Error", "No hay cliente seleccionado")
             return
-        cliente = self.tree.item(item)["values"]
-        messagebox.showinfo("Boleta",
-                            f"Boleta generada ✅\n\n"
-                            f"Nombre: {cliente[1]}\n"
-                            f"DPI: {cliente[2]}\n"
-                            f"Mora: Q{cliente[3]:.2f}\n"
-                            f"Total a pagar: Q{cliente[4]:.2f}")
+        respuesta = messagebox.askyesno(
+            "Confirmar Cobro",
+            f"¿Confirma el cobro para {self.cliente_seleccionado['nombre']}?\n\n"
+            "Esta acción marcará todas las deudas pendientes como pagadas."
+        )
 
-class AdminAgua:
-    def __init__(self, frame):
-        self.frame = frame
-        self.frame.configure(bg="white")
-
-        tk.Label(frame, text="Servicio de Agua - Administrador",
-                 font=("Arial", 16, "bold"), bg="white").pack(pady=15)
-
-        form = tk.Frame(frame, bg="white")
-        form.pack(pady=10)
-
-        tk.Label(form, text="Nombre:", bg="white").grid(row=0, column=0, padx=6)
-        self.e_nombre = ttk.Entry(form, width=35)
-        self.e_nombre.grid(row=0, column=1, padx=6)
-
-        tk.Label(form, text="DPI:", bg="white").grid(row=1, column=0, padx=6)
-        self.e_dpi = ttk.Entry(form, width=35)
-        self.e_dpi.grid(row=1, column=1, padx=6)
-
-        ttk.Button(form, text="Buscar",
-                   command=self.buscar_deuda).grid(row=2, column=0, columnspan=2, pady=10)
-
-        self.lbl_resultado = tk.Label(frame, text="", font=("Arial", 12),
-                                      bg="white", fg="blue")
-        self.lbl_resultado.pack(pady=10)
-
-        ttk.Button(frame, text="Generar Boleta",
-                   command=self.generar_boleta).pack(pady=8)
-
-    def buscar_deuda(self):
-        nombre = self.e_nombre.get().strip()
-        dpi = self.e_dpi.get().strip()
-
-        if not nombre or not dpi:
-            messagebox.showwarning("Ups", "Ingrese nombre y DPI.")
+        if not respuesta:
             return
 
-        with DatabaseManager.connect() as conn:
-            user = conn.execute("""
-                SELECT * FROM clientes
-                WHERE nombre LIKE ? AND dpi=?
-            """, (f"%{nombre}%", dpi)).fetchone()
+        try:
+            with DatabaseManager.connect() as conn:
+                fecha_pago = datetime.now().strftime("%Y-%m-%d")
 
-            if not user:
-                self.lbl_resultado.config(text="Usuario NO encontrado ❌")
-                self.usuario = None
-                return
+                if self.cliente_seleccionado["tipo"] == "contador":
+                    conn.execute("""
+                        UPDATE lecturas 
+                        SET pagado = 1, fecha_pago = ?
+                        WHERE cliente_id = ? AND pagado = 0
+                    """, (fecha_pago, self.cliente_seleccionado["id"]))
+                else:
+                    conn.execute("""
+                        UPDATE clientes 
+                        SET ultimo_pago = ?, mora = 0.0
+                        WHERE id = ?
+                    """, (fecha_pago, self.cliente_seleccionado["id"]))
 
-            self.usuario = user
-            lecturas = conn.execute("""
-                SELECT * FROM lecturas WHERE cliente_id=? AND pagado=0
-            """, (user["id"],)).fetchall()
+                conn.commit()
 
-        deuda = sum(l["total_pagar"] for l in lecturas)
+            messagebox.showinfo("Cobro Realizado",
+                              f"✅ Cobro realizado exitosamente\n\n"
+                              f"Cliente: {self.cliente_seleccionado['nombre']}\n"
+                              f"Fecha: {fecha_pago}")
+            self._calcular_deuda_cliente(self.cliente_seleccionado)
+            self._cargar_historial_pagos(self.cliente_seleccionado["id"])
 
-        if deuda > 0:
-            self.lbl_resultado.config(text=f"MORA: Q{deuda:.2f} ❌")
-        else:
-            self.lbl_resultado.config(text="Usuario SIN deuda ✅")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al procesar el cobro: {str(e)}")
 
-    def generar_boleta(self):
-        if not self.usuario:
-            messagebox.showwarning("Error", "Primero debe buscar un usuario.")
-            return
+    def _limpiar_busqueda_agua(self):
+        self.agua_nombre.delete(0, tk.END)
+        self.agua_dpi.delete(0, tk.END)
+        self._limpiar_info_cliente()
 
-        nombre = self.usuario["nombre"]
-        dpi = self.usuario["dpi"]
+    def _limpiar_info_cliente(self):
+        self.cliente_seleccionado =None
+        self.info_cliente_label.config(text="Seleccione un cliente para ver su información", fg="#666666")
+        self.deuda_label.config(text="")
+        self.btn_cobro.config(state="disabled")
 
-        messagebox.showinfo("Boleta lista ✅",
-                            f"Se generó la boleta del servicio de agua:\n\n"
-                            f"Nombre: {nombre}\nDPI: {dpi}")
+        for item in self.historial_tree.get_children():
+            self.historial_tree.delete(item)
 
-#programa principal
 if __name__ == "__main__":
     DatabaseManager.init_tables()
     DatabaseManager.setup()
