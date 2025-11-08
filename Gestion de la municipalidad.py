@@ -58,61 +58,34 @@ def inicializar_credenciales():
             conn.execute("INSERT INTO credenciales (tipo_usuario, ocntrasena) VALUES (?, ?)", ("Cocodes","cocode789"))
             conn.commit()
 
-class Empleados:
-    def __init__(self):
-        self.empleados = {}
-        self.cargar_empleados()
+def verificar_credencial(tipo, contrasena):
+    with DatabaseManager.connect() as conn:
+        cur = conn.execute("SELECT * FROM credenciales WHERE tipo_usuario=? AND contrasena=?", (tipo, contrasena))
+        return cur.fetchone() is not None
 
-    def cargar_empleados(self):
-        try:
-            with open("empleados.txt", "r", encoding="utf-8") as archivo:
-                for linea in archivo:
-                    linea = linea.strip()
-                    if linea:
-                        usuario, nombre, contrasenia = linea.split(":")
-                        self.empleados[usuario] = {
-                            "Nombre": nombre,
-                            "Contraseña" : contrasenia
-                        }
-            if not self.empleados:
-                self.crear_empleados_defecto()
-            print("Empleados importados desde empleados.txt")
-        except FileNotFoundError:
-            print("No existe el archivo empleados.txt, se crearán dos empleados por defecto.")
-            self.crear_empleados_defecto()
-            self.guardar_empleados()
+def meses_transcurridos(fecha_str):
+    if not fecha_str:
+        return 0
+    try:
+        f = datetime.strptime(fecha_str, "%Y-%m-%d").date()
+    except Exception:
+        return 0
+    hoy = datetime.today()
+    return (hoy.year - f.year) * 12 + (hoy.month - f.month)
 
-    def crear_empleados_defecto(self):
-                self.empleados = {
-                    "empleado1": {"Nombre": "Victor Pérez","Contraseña": "victor123"},
-                    "empleado2": {"Nombre": "Luis Gonzalez", "Contraseña": "luis123"}
-                }
-    def guardar_empleados(self):
-        with open("empleados.txt", "w", encoding="utf-8") as archivo:
-            for usuario, datos in self.empleados.items():
-                archivo.write(f"{usuario}:{datos['Nombre']}\n")
-        print("Empleados guardados correctamente")
-
-    def agregar_empleado(self):
-        if len(self.empleados)  >= 2:
-            print(f"Ya existe 2 empleados contratados. No se puede agregar a nadie más. ")
-            return
-        usuario = input("Ingrese el nombre del usuario:")
-        nombre = input("Ingrese el nombre completo:")
-        contrasenia = input("Ingrese la contraseña:")
-        self.empleados[usuario] = {"Nombre": nombre, "Contraseña": contrasenia}
-        self.guardar_empleados()
-        print(f"Empleado '{usuario}' agregar correctamente.")
-
-    def mostrar_empleado(self):
-        print("\n---EMPLEADOS CONTRATADOS---")
-        for usuario, datos in self.empleados.items():
-            print(f"Usuario: {usuario}| Nombre{datos['Nombre']}")
-
-    def validar_login(self, usuario, contrasenia):
-        if usuario in self.empleados and self.empleados[usuario]["Contraseña"]== contrasenia:
-            return True
-        return False
+def calcular_mora_fijo(cliente_row):
+    total_mes =cient_total_mes = float(cliente_row["total_mes"] or 12.0)
+    ultimo = cliente_row["ultimo_pago"]
+    meses = meses_transcurridos(ultimo)
+    if meses <= 0:
+        meses = 1
+    mora = meses * 25.0
+    total_deuda = meses * total_mes + mora
+    return {
+        "meses": meses,
+        "mora": mora,
+        "total_deuda": total_deuda
+    }
 
 def menu_principal():
     while True:
