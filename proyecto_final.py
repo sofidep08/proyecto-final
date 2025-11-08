@@ -1,6 +1,6 @@
 import sqlite3
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import ttk, messagebox
 from datetime import datetime, date
 import os
 
@@ -99,8 +99,8 @@ class Usuario:
     def verificar_usuario(cls, contrasena):
         with DatabaseManager.connect() as conn:
             cursor = conn.execute(
-                f"SELECT * FROM {cls.__name__.lower()} WHERE contrasena = ?",
-                (contrasena,)
+            f"SELECT * FROM {cls.__name__.lower()} WHERE contrasena = ?",
+    (contrasena,)
             )
             return cursor.fetchone() is not None
 
@@ -110,12 +110,15 @@ class Cocodes(Usuario): pass
 
 def inicializar_credenciales():
     with DatabaseManager.connect() as conn:
-        cur = conn.execute("SELECT COUNT(*) AS c FROM credenciales").fetchone()
-        if cur["c"] == 0:
-            conn.execute("INSERT INTO credenciales (tipo_usuario, contrasena) VALUES (?, ?)", ("Administrador", "123"))
-            conn.execute("INSERT INTO credenciales (tipo_usuario, contrasena) VALUES (?, ?)", ("LectorAgua", "456"))
-            conn.execute("INSERT INTO credenciales (tipo_usuario, contrasena) VALUES (?, ?)", ("Cocodes", "789"))
-            conn.commit()
+        conn.execute("DELETE FROM credenciales")
+        conn.executemany("""
+            INSERT INTO credenciales (tipo_usuario, contrasena) VALUES (?, ?)
+        """, [
+            ("Administrador", "123"),
+            ("LectorAgua", "456"),
+            ("Cocodes", "789")
+        ])
+        conn.commit()
 
 def verificar_credencial(tipo, contrasena):
     with DatabaseManager.connect() as conn:
@@ -123,16 +126,19 @@ def verificar_credencial(tipo, contrasena):
         return cur.fetchone() is not None
 
 class LectorApp:
-    def __init__(self, root):
-        self.root = root
-        root.title("Lector de Agua - Registrar Lecturas")
-        root.geometry("600x420")
-        root.resizable(False, False)
+    def __init__(self, ventana):
+        self.ventana = ventana
+        self.ventana.title("Panel del Lector de Agua")
+        self.ventana.state('zoomed')
 
-        tk.Label(root, text="Registrar Lectura (usuarios con contador)", font=("Arial", 13, "bold")).pack(pady=10)
+        self.notebook = ttk.Notebook(self.ventana)
+        self.notebook.pack(fill="both", expand=True)
 
-        frm = tk.Frame(root)
-        frm.pack(pady=8)
+        self.tab_lectura = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab_lectura, text="Hacer Lectura")
+
+        frm = ttk.Frame(self.tab_lectura, padding=20)
+        frm.pack(pady=20)
 
         tk.Label(frm, text="Usuario (seleccione):").grid(row=0, column=0, sticky="e", padx=5, pady=6)
         self.cb_usuarios = ttk.Combobox(frm, width=45, state="readonly")
@@ -153,6 +159,24 @@ class LectorApp:
 
         self.cargar_usuarios()
 
+        self.tab_ayuda = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab_ayuda, text="Ayuda")
+
+        ttk.Label(self.tab_ayuda, text="Centro de ayuda del lector de agua", font=("Segoe UI", 16, "bold")).pack(pady=20)
+        ayuda_texto = (
+            "Aquí puedes registar las lecturas de los medidores.\n"
+            "1. Ingresa el código del medidor.\n"
+            "2. Escribe la lectura actual en galones.\n"
+            "3. Pulsa 'Guardar Lectura' para almacenar el dato.\n"
+            "Si tienes problemas, contacta al administrador del sistema."
+        )
+        ttk.Label(self.tab_ayuda, text=ayuda_texto, justify="left", font=("Segoe UI", 11)).pack(padx=20, pady=10)
+
+        self.tab_salir = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab_salir, text="Salir")
+        ttk.Label(self.tab_salir, text="¿Deseas cerrar el panel del lector?", font=("Segoe UI", 14)).pack(pady=40)
+        ttk.Button(self.tab_salir, text="Cerrar Sesión", command=self.cerrar_sesion).pack(pady=20)
+
     def cargar_usuarios(self):
         with DatabaseManager.connect() as conn:
             filas = conn.execute("SELECT id, nombre, numero_casa FROM clientes WHERE tipo='contador' ORDER BY nombre").fetchall()
@@ -162,7 +186,7 @@ class LectorApp:
             self.cb_usuarios.current(0)
 
     def guardar_lectura(self):
-        seleccionado = self.cb_usuarios.get()
+        seleccionado = slef.cb_usuarios.get()
         consumo = self.e_consumo.get().strip()
         fecha = self.e_fecha.get().strip()
 
@@ -178,19 +202,14 @@ class LectorApp:
             messagebox.showerror("Error", "Consumo debe ser un número positivo.")
             return
 
-        cliente_id = seleccionado.split(" - ")[0]
-        precio_unitario = 0.10  # Q0.10 por galón (configurable)
-        total = consumo_float * precio_unitario
 
-        with DatabaseManager.connect() as conn:
-            conn.execute("""
-                INSERT INTO lecturas(cliente_id, consumo, total_pagar, fecha, pagado)
-                VALUES(?, ?, ?, ?, 0)
-            """, (cliente_id, consumo_float, total, fecha))
-            conn.commit()
 
-        messagebox.showinfo("Guardado", f"Lectura registrada ✅\nTotal Q{total:.2f}")
-        self.e_consumo.delete(0, tk.END)
+    def cerrar_sesion(self):
+        confirm = messagebox.askyesno("Confirmar", "¿Seguro que deseas cerrar sesión?")
+        if confirm:
+            self.ventana.destroy()
+            import main
+            main.Graficos(tk.Tk())
 
 class Graficos:
     def __init__(self, ventana):
@@ -218,31 +237,24 @@ class Graficos:
         self.main_frame.pack(fill="both", expand=True)
 
         assets_dir = os.path.join(os.path.dirname(__file__), "assets")
-        ruta_png = os.path.join(assets_dir, "fondo_login.png")
-        ruta_jpg = os.path.join(assets_dir, "fondo_login.jpg")
+        ruta_imagen = os.path.join(assets_dir, "images.jpg")
 
         loaded = False
-        if os.path.exists(ruta_png):
+        if os.path.exists(ruta_imagen):
             try:
-                self.bg_photo = tk.PhotoImage(file=ruta_png)
+                if PIL_AVAILABLE:
+                    img = Image.open(ruta_imagen)
+                    img = img.resize((1100, 650), Image.Resampling.LANCZOS)
+                    self.bg_photo = ImageTk.PhotoImage(img)
+                else:
+                    self.bg_photo = tk.PhotoImage(file=ruta_imagen)
+
                 bg_label = tk.Label(self.main_frame, image=self.bg_photo)
                 bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-                loaded = True
-            except Exception:
-                loaded = False
-
-        if (not loaded) and os.path.exists(ruta_jpg) and PIL_AVAILABLE:
-            try:
-                img = Image.open(ruta_jpg)
-                self.bg_photo = ImageTk.PhotoImage(img)
-                bg_label = tk.Label(self.main_frame, image=self.bg_photo)
-                bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-                loaded = True
-            except Exception:
-                loaded = False
-
-        if not loaded:
-            self.main_frame.configure(bg="#F6F6F8")
+            except Exception as e:
+                print(f"No se pudo cargar la imagen de fondo: {e}")
+            else:
+                print("No se encontró la imagen de fondo en:", ruta_imagen)
 
         style = ttk.Style()
         try:
@@ -305,11 +317,14 @@ class Graficos:
         if tipo == "Selecciona un usuario" or not tipo:
             messagebox.showwarning("Atención", "Debes seleccionar un tipo de usuario.")
             return
+
         if not contra:
             messagebox.showwarning("Atención", "Debes ingresar una contraseña.")
             return
+
         if verificar_credencial(tipo, contra):
-            self.mostrar_interfaz_usuario(tipo)
+            messagebox.showinfo("Bienvenido", f"Inicio de sesión exitoso como {tipo}")
+            self.mostrar_interfaz_usuario(tipo)  # 🔹 Aquí está la clave
         else:
             messagebox.showerror("Error", "Contraseña incorrecta")
 
@@ -324,7 +339,7 @@ class Graficos:
         else:
             frame = tk.Frame(self.ventana, bg="#F6F6F8")
             frame.pack(fill="both", expand=True)
-            tk.Label(frame, text="Panel de {tipo}", font=("Segoe UI", 20, "bold"),bg="#F6F6F8").pack(pady=40)
+            tk.Label(frame, text=f"Panel de {tipo}", font=("Segoe UI", 20, "bold"), bg="#F6F6F8").pack(pady=40)
             ttk.Button(frame, text="Cerrar sesión", command=self.crear_login).pack(pady=12)
 
 class AdminPanel:
