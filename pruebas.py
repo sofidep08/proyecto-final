@@ -743,6 +743,100 @@ class AdminPanel:
                 messagebox.showwarning("Atención", "Ingrese al menos el nombre o DPI del cliente")
                 return
 
+            with DatabaseManager.connect() as conn:
+                query = "SELECT * FROM clientes WHERE nombre 1=1"
+                params = []
+
+                if nombre:
+                    query += "AND nombre LIKE ?"
+                    params.append(f"%{nombre}%")
+                if dpi:
+                    query += "AND dpi = ?"
+                    params.append(dpi)
+
+                cliente = conn.execute(query, params).fetchone()
+
+            if not cliente:
+                messagebox.showwarning("No encontrado", "No se encontró ningún cliente con esos datos")
+                self._limpiar_info_cliente()
+                return
+
+            self.cliente_selccionado = cliente
+            self._mostrar_info_cliente(cliente)
+            self._calcular_deuda_cliente(cliente)
+            self._cargar_historial_pagos(cliente["id"])
+
+        def _mostrar_info_cliente(slef, cliente):
+            Nombre: {cliente['nombre']}
+            DPI: {cliente['dpi']}
+            Direccion: {cliente['direccion'] or 'No espeficada'}
+            Casa  #: {cliente['numero_casa']}
+            Tipo de servicio: {'Con contador' if cliente['tipo'] == 'contador' else 'Tarifa fija'}
+
+            self.info_cliente_label.config(text=info_text, fg="#2D3A4A", justify="left")
+
+            def _calcular_deuda_cliente(self, cliente):
+                with DatabaseManager.connect() as conn:
+                    if cliente["tipo"] == "contador":
+                        lecturas = conn.execute("""
+                                SELECT * FROM lecturas 
+                                WHERE cliente_id = ? AND pagado = 0
+                                ORDER BY fecha DESC
+                            """, (cliente["id"],)).fetchall()
+
+                        total_deuda = 0
+                        detalles = []
+
+                        for lectura in lecturas:
+                            meses_mora = self._calcular_meses_transcurridos(lectura["fecha"])
+                            mora = meses_mora * 25.0
+                            total_lectura = float(lectura["total_pagar"]) + mora
+                            total_deuda += total_lectura
+
+                            detalles.append(
+                                f"• Lectura {lectura['fecha']}: Q{lectura['total_pagar']:.2f} + Mora Q{mora:.2f}")
+
+                    else:
+                        ultimo_pago = cliente["ultimo_pago"]
+                        meses_sin_pagar = self._calcular_meses_transcurridos(ultimo_pago) if ultimo_pago else 1
+                        if meses_sin_pagar <= 0:
+                            meses_sin_pagar = 1
+
+                        tarifa_mensual = float(cliente["total_mes"] or 12.0)
+                        mora_total = meses_sin_pagar * 25.0
+                        total_deuda = (meses_sin_pagar * tarifa_mensual) + mora_total
+
+                        detalles = [
+                            f"• Tarifa mensual: Q{tarifa_mensual:.2f}",
+                            f"• Meses sin pagar: {meses_sin_pagar}",
+                            f"• Subtotal: Q{meses_sin_pagar * tarifa_mensual:.2f}",
+                            f"• Mora total: Q{mora_total:.2f}"
+                        ]
+
+    def _cargar_historial_pagos(self, cliente_id):
+        for item in self.historial_tree.get_children():
+            self.historial_tree.delete(item)
+
+        with DatabaseManager.connect() as conn:
+            lecturas = conn.execute("""
+                SELECT fecha, consumo, total_pagar, pagado, fecha_pago
+                FROM lecturas 
+                WHERE cliente_id = ?
+                ORDER BY fecha DESC
+                LIMIT 10
+            """, (cliente_id,)).fetchall()
+
+            for lectura in lecturas:
+                estado = "✅ Pagado" if lectura["pagado"] else "❌ Pendiente"
+                consumo = f"{lectura['consumo']:.1f} gal" if lectura["consumo"] else "N/A"
+
+                self.historial_tree.insert("", "end", values=(
+                    lectura["fecha"],
+                    "Contador",
+                    consumo,
+                    f"Q{lectura['total_pagar']:.2f}",
+                    estado
+                ))
 
 
 
