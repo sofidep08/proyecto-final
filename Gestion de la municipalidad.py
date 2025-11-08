@@ -87,6 +87,35 @@ def calcular_mora_fijo(cliente_row):
         "total_deuda": total_deuda
     }
 
+def calcular_mora_lectura(lectura_row):
+    fecha_lectura = lectura_row["fecha"]
+    meses = meses_transcurridos(fecha_lectura)
+    mora = max(0, meses) * 25.0
+    total = float(lectura_row["total_pago"]) + mora
+    return {"meses": meses, "mora": mora, "total": total}
+
+class LoginApp:
+    def __init__(self, root):
+        self.root = root
+        root.title("Municipalidad - Sistema de Agua")
+        root.geometry("420x260")
+        root.resizable(False, False)
+
+        tk.Label(root, text="Sistema Municipal - Agua", font=("Arial", 14, "bold")).pack(pady=10)
+        frame = tk.Frame(root)
+        frame.pack(pady=5)
+
+        tk.Label(frame, text="Tipo de usuario").grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        self.cb_tipo = ttk.Combobox(frame, values=["Administrador", "LectorAgua", "Cocodes"], state="readonly", width=25)
+        self.cb_tipo.current(0)
+        self.cb_tipo.grid(row=0, column=1, sticky="e", padx=5, pady=5)
+
+        tk.Label(frame, text="Contraseña:").grid(row=1, column=0, sticky="e", padx=5, pady=5)
+        self.entry_pass = ttk.Entry(frame, show="*", width=27)
+        self.entry_pass.grid(row=1, column=1, padx=5, pady=5)
+
+        tk.Button(root, text="Iniciar Sesión", width=20, command=self.login).pack(pady=10)
+
 def menu_principal():
     while True:
         print("\n---PANTALLA DE INICIO---")
