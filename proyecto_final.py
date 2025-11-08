@@ -76,6 +76,13 @@ class DatabaseManager:
                         FOREIGN KEY(cliente_id) REFERENCES clientes(id)
                     );
                 """)
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS credenciales (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_usuario TEXT NOT NULL,
+                    contrasena TEXT NOT NULL,
+                    );
+                """)
                 conn.commit()
 
 class Usuario:
