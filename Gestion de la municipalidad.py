@@ -114,7 +114,7 @@ class LoginApp:
         self.entry_pass = ttk.Entry(frame, show="*", width=27)
         self.entry_pass.grid(row=1, column=1, padx=5, pady=5)
 
-        tk.Button(root, text="Iniciar Sesión", width=20, command=self.login).pack(pady=10)
+        tk.Button(root, text="Iniciar Sesión", width=21, command=self.login).pack(pady=10)
 
     def login(self):
         tipo= self.cb_tipo.get()
