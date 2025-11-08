@@ -323,31 +323,15 @@ class Graficos:
     def mostrar_interfaz_usuario(self, tipo):
         for widget in self.ventana.winfo_children():
             widget.destroy()
-
-        clases = {"Administrador": Administrador, "LectorAgua": LectorAgua, "Cocodes": Cocodes}
-        clase_usuario = clases.get(tipo)
-
-        if clase_usuario and clase_usuario.verificar_usuario(contra):
-            self.mostrar_interfaz_usuario(tipo)
-        else:
-            messagebox.showerror("Error", "Contraseña incorrecta")
-
-    def mostrar_interfaz_usuario(self, tipo):
-        for widget in self.ventana.winfo_children():
-            widget.destroy()
-
         if tipo == "Administrador":
             AdminPanel(self.ventana, self)
         elif tipo == "LectorAgua":
-            # abrir ventana del lector
             lector_win = tk.Toplevel(self.ventana)
             LectorApp(lector_win)
-            # volver al login cuando lector cierre ventana
-            # opcional: keep main login open or close - here we'll leave main closed
         else:
             frame = tk.Frame(self.ventana, bg="#F6F6F8")
             frame.pack(fill="both", expand=True)
-            tk.Label(frame, text=f"Panel de {tipo}", font=("Segoe UI", 20, "bold"), bg="#F6F6F8").pack(pady=40)
+            tk.Label(frame, text="Panel de {tipo}", font=("Segoe UI", 20, "bold"),bg="#F6F6F8").pack(pady=40)
             ttk.Button(frame, text="Cerrar sesión", command=self.crear_login).pack(pady=12)
 
 class AdminPanel:
