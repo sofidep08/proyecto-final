@@ -116,6 +116,85 @@ class LoginApp:
 
         tk.Button(root, text="Iniciar Sesión", width=20, command=self.login).pack(pady=10)
 
+    def login(self):
+        tipo= self.cb_tipo.get()
+        contra = self. entry_pass.get()
+        if not tipo or not contra:
+            messagebox.showwarning("Atención", "Ingrese tipo de usuario y contraseña.")
+            return
+        if verificar_credencial(tipo, contra):
+            self.root.destroy()
+            if tipo == "Administrador":
+                root = tk.Tk()
+                adminApp(root)
+                root.mainloop()
+            elif tipo == "LectorAgua":
+                root = tk.Tk()
+                LectorApp(root)
+                root.mainloop()
+            else:
+                root = tk.Tk()
+                tk.Label(root, text="Panel Cocodes (sin funionalidades)", padx=20, pady=20).pack()
+                tk.Button(root, text="Cerrar", command=root.destroy).pack(pady=10)
+                root.mainloop()
+        else:
+            messagebox.showerror("Error", "Credenciales incorrectas.")
+
+class AdminApp:
+    def __init__(self, root):
+        self.root = root
+        root.title("Administrador - Municipalidad")
+        root.geometry("900x600")
+        root.resizable(True, True)
+
+        # Left menu
+        menu = tk.Frame(root, width=220, bg="#D3C7A1")
+        menu.pack(side="left", fill="y")
+        tk.Label(menu, text="Administrador", bg="#D3C7A1", font=("Arial", 12, "bold")).pack(pady=12)
+
+        tk.Button(menu, text="Registrar Cliente", width=22, command=self.pantalla_registrar).pack(pady=8)
+        tk.Button(menu, text="Cobro de Agua", width=22, command=self.pantalla_cobro).pack(pady=8)
+        tk.Button(menu, text="Ver Clientes", width=22, command=self.pantalla_listar_clientes).pack(pady=8)
+        tk.Button(menu, text="Cerrar sesión", width=22, command=self.cerrar).pack(side="bottom", pady=20)
+
+        # Main content
+        self.content = tk.Frame(root, bg="#EFEFEF")
+        self.content.pack(side="right", expand=True, fill="both")
+
+        self.pantalla_registrar()
+
+    def limpiar_content(self):
+        for w in self.content.winfo_children():
+            w.destroy()
+
+    def pantalla_registrar(self):
+        self.limpiar_content()
+        tk.Label(self.content, text="Registrar Cliente", font=("Arial", 12, "bold"), bg="#EFEFEF").pack(pady=10)
+
+        frm = tk.Frame(self.content, bg="#EFEFEF")
+        frm.pack(pady=5)
+        tk.Label(frm, text="Nombre: ", bg="#EFEFEF").grid(row=0, column=0, sticky="e")
+        e_nombre = ttk.Entry(frm, width=40);
+        e_nombre.grid(row=0, column=1, pady=4)
+
+        tk.Label(frm, text="DPI: ", bg="#EFEFEF").grid(row=1, column=0, sticky="e")
+        e_dpi = ttk.Entry(frm, width=40);
+        e_dpi.grid(row=1, column=1, pady=4)
+
+        tk.Label(frm, text="Dirección: ", bg="#EFEFEF").grid(row=2, column=0, sticky="e")
+        e_direccion = ttk.Entry(frm, width=40);
+        e_direccion.grid(row=2, column=1, pady=4)
+
+        tk.Label(frm, text="Número de casa: ", bg="#EFEFEF").grid(row=3, column=0, sticky="e")
+        e_casa = ttk.Entry(frm, width=40);
+        e_casa.grid(row=3, column=1, pady=4)
+
+        tk.Label(frm, text="Tipo de servicio: ", bg="#EFEFEF").grid(row=4, column=0, sticky="e")
+        cb_tipo = ttk.Combobox(frm, values=["fijo", "contador"], width=37, state="readonly");
+        cb_tipo.grid(row=4, column=1, pady=4)
+        cb_tipo.current(0)
+
+
 def menu_principal():
     while True:
         print("\n---PANTALLA DE INICIO---")
