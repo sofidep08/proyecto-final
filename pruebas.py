@@ -397,25 +397,17 @@ class AdminPanel:
         for w in self.content.winfo_children():
             w.destroy()
 
-        if agua:
-            panel_agua = self.ServicioAgua(self.content)
-            panel_agua.pack(fill="both", expand=True)
-            return
-
         notebook = ttk.Notebook(self.content)
         notebook.pack(fill="both", expand=True, padx=18, pady=18)
 
-        # Registrar
         register_tab = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(register_tab, text="Registrar")
         self._build_register_tab(register_tab)
 
-        # Buscar
         search_tab = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(search_tab, text="Buscar")
         self._build_search_tab(search_tab)
 
-        # Ver todos
         all_tab = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(all_tab, text="Ver todos")
         self._build_all_tab(all_tab)
@@ -685,148 +677,49 @@ class AdminPanel:
             widget.destroy()
         self.app.crear_login()
 
-    def _calcular_mora_fijo(self, cliente_row):
-        def meses_transcurridos(fecha_str):
-            if not fecha_str:
-                return 0
-            try:
-                f = datetime.strptime(fecha_str, "%Y-%m-%d").date()
-            except Exception:
-                return 0
-            hoy = date.today()
-            return (hoy.year - f.year) * 12 + (hoy.month - f.month)
-
-        total_mes = float(cliente_row["total_mes"] or 12.0)
-        ultimo = cliente_row["ultimo_pago"]
-        meses = meses_transcurridos(ultimo)
-        if meses <= 0:
-            meses = 1
-        mora = meses * 25.0
-        total_deuda = meses * total_mes + mora
-        return {"meses": meses, "mora": mora, "total_deuda": total_deuda}
-
-    def _calcular_mora_lectura(self, lectura_row):
-        fecha_lectura = lectura_row["fecha"]
-
-        def meses_transcurridos(fecha_str):
-            if not fecha_str:
-                return 0
-            try:
-                f = datetime.strptime(fecha_str, "%Y-%m-%d").date()
-            except Exception:
-                return 0
-            hoy = date.today()
-            return (hoy.year - f.year) * 12 + (hoy.month - f.month)
-
-        meses = meses_transcurridos(fecha_lectura)
-        mora = max(0, meses) * 25.0
-        total = float(lectura_row["total_pagar"]) + mora
-        return {"meses": meses, "mora": mora, "total": total}
-
     def _abrir_panel_agua(self):
-        # Limpia contenido actual
         for w in self.content.winfo_children():
             w.destroy()
 
-        notebook = ttk.Notebook(self.content)
-        notebook.pack(fill="both", expand=True, padx=18, pady=18)
+        titulo = tk.Label(self.content, text="Sistema de cobro - Servicio de Agua", font=("Segoe UI", 20, "bold"), bg="#F2F5F9", fg="#2D3A4A")
+        titulo.pack(pady=20)
 
-        # Subpestaña: Buscar cliente
-        search_tab = tk.Frame(notebook, bg="#FFFFFF")
-        notebook.add(search_tab, text="Buscar cliente")
-        self._build_agua_search_tab(search_tab)
+        main_frame = tk.Frame(self.content, bg="#FFFFFF", relief="raised", bd=2)
+        main_frame.pack(fil="both", expand=True, padx=20, pady=10)
 
-        # Subpestaña: Ver todos
-        all_tab = tk.Frame(notebook, bg="#FFFFFF")
-        notebook.add(all_tab, text="Ver todos")
-        self._build_agua_all_tab(all_tab)
+        search_frame = tk.LabelFrame(main_frame, text="Buscar Cliente", font=("Segoe UI", 12, "bold"), bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
+        search_frame.pack(fill="x", padx=20, pady=20)
 
-    def _build_agua_search_tab(self, parent):
-        frame = tk.Frame(parent, bg="#FFFFFF")
-        frame.pack(padx=12, pady=12, fill="x")
+        tk.Label(search_frame, text="Nombre:", font=("Segoe UI", 10), bg="#FFFFFF").grid(row=0, column=0, sticky="w",
+                                                                                         padx=5, pady=5)
+        self.agua_nombre = ttk.Entry(search_frame, width=30, font=("Segoe UI", 10))
+        self.agua_nombre.grid(row=0, column=1, padx=10, pady=5)
 
-        # Entradas
-        tk.Label(frame, text="Nombre:", bg="#FFFFFF").grid(row=0, column=0, padx=6, pady=6)
-        self.agua_search_nombre = ttk.Entry(frame, width=40)
-        self.agua_search_nombre.grid(row=0, column=1, padx=6, pady=6)
+        tk.Label(search_frame, text="DPI:", font=("Segoe UI", 10), bg="#FFFFFF").grid(row=0, column=2, sticky="w",
+                                                                                      padx=5, pady=5)
+        self.agua_dpi = ttk.Entry(search_frame, width=20, font=("Segoe UI", 10))
+        self.agua_dpi.grid(row=0, column=3, padx=10, pady=5)
 
-        tk.Label(frame, text="DPI:", bg="#FFFFFF").grid(row=1, column=0, padx=6, pady=6)
-        self.agua_search_dpi = ttk.Entry(frame, width=40)
-        self.agua_search_dpi.grid(row=1, column=1, padx=6, pady=6)
+        ttk.Button(btn_frame, text="🔍 Buscar Cliente", command=self._buscar_cliente_agua).pack(side="left", padx=10)
+        ttk.Button(btn_frame, text="🔄 Limpiar", command=self._limpiar_busqueda_agua).pack(side="left", padx=10)
 
-        # Botón buscar
-        ttk.Button(frame, text="Buscar", command=self._buscar_cliente_agua).grid(row=2, column=0, columnspan=2, pady=10)
+        info_frame = tk.LabelFrame(main_frame, text="Información del Cliente", font=("Segoe UI", 12, "bold"), bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
+        info_frame.pack(fill="x", padx=20, pady=10)
 
-        # Resultado
-        self.agua_result_lbl = tk.Label(frame, text="", bg="#FFFFFF", fg="blue", font=("Arial", 12))
-        self.agua_result_lbl.grid(row=3, column=0, columnspan=2, pady=6)
+        self.info_cliente_label = tk.Label(info_frame, text="Detalles de Cobro", font=("Segoe UI", 12, "bold"),
+                                  bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
+        self.info_cliente_label.pack(pady=10)
 
-        # Botón generar boleta
-        ttk.Button(frame, text="Generar Boleta", command=self._generar_boleta_agua).grid(row=4, column=0, columnspan=2,
-                                                                                         pady=10)
+        cobro_frame = tk.LabelFrame(main_frame, text="Detalles de Cobro", font=("Segoe UI", 12, "bold"), bg="#FFFFFF", fg="2D3A4A", padx=15, pady=15)
+        cobro_frame.pack(fill="x", padx=20, pady=10)
 
-    def _build_agua_all_tab(self, parent):
-        # Tabla de todos los clientes con deuda
-        self.agua_all_tree = ttk.Treeview(parent, columns=("ID", "Nombre", "DPI", "Mora"), show="headings")
-        for col in self.agua_all_tree["columns"]:
-            self.agua_all_tree.heading(col, text=col)
-            self.agua_all_tree.column(col, width=120 if col != "Nombre" else 220, anchor="w")
-        self.agua_all_tree.pack(fill="both", expand=True, padx=12, pady=12)
+        self.deuda_label = tk.Label(cobro_frame, text="", font=("Segoe UI", 12, "bold"), bg="#FFFFFF")
+        self.deuda_label.pack(pady=10)
 
-        # Cargar datos
-        self._cargar_todos_clientes_agua()
+        self.btn_cobro = ttk.Button(cobro_frame, text="💰 REALIZAR COBRO", command=self._realizar_cobro_agua, state="disabled")
+        self.btn_cobro.pack(pady=15)
 
-    # Métodos auxiliares
-    def _buscar_cliente_agua(self):
-        nombre = self.agua_search_nombre.get().strip()
-        dpi = self.agua_search_dpi.get().strip()
 
-        if not nombre or not dpi:
-            messagebox.showwarning("Aviso", "Ingrese nombre y DPI")
-            return
-
-        with DatabaseManager.connect() as conn:
-            user = conn.execute("SELECT * FROM clientes WHERE nombre LIKE ? AND dpi=?", (f"%{nombre}%", dpi)).fetchone()
-
-        if not user:
-            self.agua_result_lbl.config(text="Usuario NO encontrado ❌")
-            self.agua_cliente = None
-            return
-
-        self.agua_cliente = user
-
-        # Calcular mora simple: 25 por mes por ejemplo
-        with DatabaseManager.connect() as conn:
-            lecturas = conn.execute("SELECT * FROM lecturas WHERE cliente_id=? AND pagado=0", (user["id"],)).fetchall()
-        deuda = sum(l["total_pagar"] for l in lecturas)
-
-        if deuda > 0:
-            self.agua_result_lbl.config(text=f"MORA: Q{deuda:.2f} ❌")
-        else:
-            self.agua_result_lbl.config(text="Usuario SIN deuda ✅")
-
-    def _generar_boleta_agua(self):
-        if not hasattr(self, "agua_cliente") or not self.agua_cliente:
-            messagebox.showwarning("Error", "Primero busque un cliente")
-            return
-
-        nombre = self.agua_cliente["nombre"]
-        dpi = self.agua_cliente["dpi"]
-
-        messagebox.showinfo("Boleta lista ✅",
-                            f"Se generó la boleta del servicio de agua:\n\nNombre: {nombre}\nDPI: {dpi}")
-
-    def _cargar_todos_clientes_agua(self):
-        for i in self.agua_all_tree.get_children():
-            self.agua_all_tree.delete(i)
-        with DatabaseManager.connect() as conn:
-            rows = conn.execute("SELECT id, nombre, dpi FROM clientes").fetchall()
-        for r in rows:
-            # Calcular mora simple
-            lecturas = conn.execute("SELECT total_pagar FROM lecturas WHERE cliente_id=? AND pagado=0",
-                                    (r["id"],)).fetchall()
-            deuda = sum(l["total_pagar"] for l in lecturas)
-            self.agua_all_tree.insert("", "end", values=(r["id"], r["nombre"], r["dpi"], f"Q{deuda:.2f}"))
 
 
 class ServicioAguaAdmin(ttk.Frame):
