@@ -217,7 +217,6 @@ class Graficos:
         self.main_frame = tk.Frame(self.ventana, bg="#F6F6F8")
         self.main_frame.pack(fill="both", expand=True)
 
-        # try to load background image safely
         assets_dir = os.path.join(os.path.dirname(__file__), "assets")
         ruta_png = os.path.join(assets_dir, "fondo_login.png")
         ruta_jpg = os.path.join(assets_dir, "fondo_login.jpg")
@@ -235,8 +234,6 @@ class Graficos:
         if (not loaded) and os.path.exists(ruta_jpg) and PIL_AVAILABLE:
             try:
                 img = Image.open(ruta_jpg)
-                # optional: resize to window if desired
-                # img = img.resize((1100,650), Image.LANCZOS)
                 self.bg_photo = ImageTk.PhotoImage(img)
                 bg_label = tk.Label(self.main_frame, image=self.bg_photo)
                 bg_label.place(x=0, y=0, relwidth=1, relheight=1)
@@ -335,6 +332,7 @@ class AdminPanel:
         self.ventana = ventana
         self.app = app
         self.selected_user_id = None
+        self.cliente_seleccionado = None
         self.crear_panel_admin()
 
     def crear_panel_admin(self):
@@ -378,7 +376,6 @@ class AdminPanel:
         self.content = tk.Frame(self.ventana, bg="#F2F5F9")
         self.content.pack(fill="both", expand=True)
 
-            #bienvenido
         self._show_welcome()
 
     def _show_welcome(self):
@@ -677,20 +674,30 @@ class AdminPanel:
         for w in self.content.winfo_children():
             w.destroy()
 
-        titulo = tk.Label(self.content, text="Sistema de Cobro - Servicio de Agua",
+        titulo = tk.Label(self.content, text="Servicio de Agua",
                           font=("Segoe UI", 20, "bold"), bg="#F2F5F9", fg="#2D3A4A")
         titulo.pack(pady=20)
 
-        # Frame principal
-        main_frame = tk.Frame(self.content, bg="#FFFFFF", relief="raised", bd=2)
+        notebook = ttk.Notebook(self.content)
+        notebook.pack(fill="both", expand=True, padx=18, pady=18)
+
+        cobro_tab = tk.Frame(notebook, bg="#FFFFFF")
+        notebook.add(cobro_tab, text="Cobro")
+        self._build_cobro_agua_tab(cobro_tab)
+
+        ver_todos_tab = tk.Frame(notebook, bg="#FFFFFF")
+        notebook.add(ver_todos_tab, text="Ver Todos")
+        self._build_ver_todos_agua_tab(ver_todos_tab)
+
+    def _build_cobro_agua_tab(self, parent):
+
+        main_frame = tk.Frame(parent, bg="#FFFFFF", relief="raised", bd=2)
         main_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
-        # Sección de búsqueda
         search_frame = tk.LabelFrame(main_frame, text="Buscar Cliente", font=("Segoe UI", 12, "bold"),
                                      bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
         search_frame.pack(fill="x", padx=20, pady=20)
 
-        # Campos de búsqueda
         tk.Label(search_frame, text="Nombre:", font=("Segoe UI", 10), bg="#FFFFFF").grid(row=0, column=0, sticky="w",
                                                                                          padx=5, pady=5)
         self.agua_nombre = ttk.Entry(search_frame, width=30, font=("Segoe UI", 10))
@@ -701,7 +708,6 @@ class AdminPanel:
         self.agua_dpi = ttk.Entry(search_frame, width=20, font=("Segoe UI", 10))
         self.agua_dpi.grid(row=0, column=3, padx=10, pady=5)
 
-        # Botones de búsqueda
         btn_frame = tk.Frame(search_frame, bg="#FFFFFF")
         btn_frame.grid(row=1, column=0, columnspan=4, pady=15)
 
@@ -743,6 +749,99 @@ class AdminPanel:
 
         self.historial_tree.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
+
+    def _build_ver_todos_agua_tab(self, parent):
+        container = tk.Frame(parent, bg="#FFFFFF")
+        container.pack(fill="both", expand=True, padx=12, pady=12)
+
+        top = tk.Frame(container, bg="#FFFFFF")
+        top.pack(fill="x", padx=12, pady=12)
+
+        ttk.Button(top, text="🔄 Refrescar lista", command=self._load_all_clientes_agua).pack(side="left", padx=6)
+        ttk.Button(top, text="📊 Ver detalles", command=self._ver_detalles_cliente_agua).pack(side="left", padx=6)
+
+        cols = ("id", "nombre", "dpi", "direccion", "numero_casa", "tipo", "deuda")
+        self.agua_all_tree = ttk.Treeview(container, columns=cols, show="headings")
+
+        headers = [("id", "ID", 60), ("nombre", "Nombre", 200), ("dpi", "DPI", 120),
+                   ("direccion", "Dirección", 180), ("numero_casa", "Casa #", 80),
+                   ("tipo", "Tipo Servicio", 120), ("deuda", "Deuda", 100)]
+
+        for col, heading, width in headers:
+            self.agua_all_tree.heading(col, text=heading)
+            self.agua_all_tree.column(col, width=width, anchor="w" if col in ["nombre", "direccion"] else "center")
+
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=self.agua_all_tree.yview)
+        self.agua_all_tree.configure(yscrollcommand=scrollbar.set)
+
+        self.agua_all_tree.pack(side="left", fill="both", expand=True, padx=12, pady=12)
+        scrollbar.pack(side="right", fill="y")
+
+        self._load_all_clientes_agua()
+
+    def _load_all_clientes_agua(self):
+        for i in self.agua_all_tree.get_children():
+            self.agua_all_tree.delete(i)
+
+        with DatabaseManager.connect() as conn:
+            clientes = conn.execute("SELECT * FROM clientes ORDER BY nombre COLLATE NOCASE").fetchall()
+
+        for cliente in clientes:
+            deuda = self._calcular_deuda_simple(cliente)
+            tipo_texto = "Con contador" if cliente["tipo"] == "contador" else "Tarifa fija"
+
+            self.agua_all_tree.insert("", "end", values=(
+                cliente["id"],
+                cliente["nombre"],
+                cliente["dpi"],
+                cliente["direccion"] or "N/A",
+                cliente["numero_casa"],
+                tipo_texto,
+                f"Q{deuda:.2f}"
+            ))
+
+    def _calcular_deuda_simple(self, cliente):
+        with DatabaseManager.connect() as conn:
+            if cliente["tipo"] == "contador":
+                lecturas = conn.execute("""
+                    SELECT SUM(total_pagar) as total FROM lecturas 
+                    WHERE cliente_id = ? AND pagado = 0
+                """, (cliente["id"],)).fetchone()
+                return float(lecturas["total"] or 0.0)
+            else:
+                ultimo_pago = cliente["ultimo_pago"]
+                meses_sin_pagar = self._calcular_meses_transcurridos(ultimo_pago) if ultimo_pago else 1
+                if meses_sin_pagar <= 0:
+                    meses_sin_pagar = 0
+                tarifa_mensual = float(cliente["total_mes"] or 12.0)
+                return meses_sin_pagar * tarifa_mensual
+
+    def _ver_detalles_cliente_agua(self):
+        sel = self.agua_all_tree.selection()
+        if not sel:
+            messagebox.showinfo("Atención", "Seleccione un cliente de la lista")
+            return
+
+        item = self.agua_all_tree.item(sel[0])
+        cliente_id = item["values"][0]
+
+        with DatabaseManager.connect() as conn:
+            cliente = conn.execute("SELECT * FROM clientes WHERE id = ?", (cliente_id,)).fetchone()
+
+        if cliente:
+            info = f"""
+Información del Cliente:
+━━━━━━━━━━━━━━━━━━━━━━
+👤 Nombre: {cliente['nombre']}
+🆔 DPI: {cliente['dpi']}
+🏠 Dirección: {cliente['direccion'] or 'No especificada'}
+🏘️ Casa #: {cliente['numero_casa']}
+📊 Tipo: {'Con contador' if cliente['tipo'] == 'contador' else 'Tarifa fija'}
+💰 Tarifa mensual: Q{cliente['total_mes']:.2f}
+📅 Último pago: {cliente['ultimo_pago'] or 'Sin registros'}
+💸 Deuda: Q{self._calcular_deuda_simple(cliente):.2f}
+            """
+            messagebox.showinfo("Detalles del Cliente", info)
 
     def _buscar_cliente_agua(self):
         nombre = self.agua_nombre.get().strip()
@@ -822,6 +921,25 @@ class AdminPanel:
                     f"• Subtotal: Q{meses_sin_pagar * tarifa_mensual:.2f}",
                     f"• Mora total: Q{mora_total:.2f}"
                 ]
+
+        if total_deuda > 0:
+            deuda_text = f"💸 DEUDA TOTAL: Q{total_deuda:.2f}\n\nDetalles:\n" + "\n".join(detalles)
+            self.deuda_label.config(text=deuda_text, fg="#D32F2F", justify="left")
+            self.btn_cobro.config(state="normal")
+        else:
+            self.deuda_label.config(text="✅ Cliente al día - Sin deuda pendiente", fg="#388E3C")
+            self.btn_cobro.config(state="disabled")
+
+    def _calcular_meses_transcurridos(self, fecha_str):
+        if not fecha_str:
+            return 0
+
+        try:
+            fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date()
+            hoy = date.today()
+            return (hoy.year - fecha.year) * 12 + (hoy.month - fecha.month)
+        except:
+            return 0
 
     def _cargar_historial_pagos(self, cliente_id):
         for item in self.historial_tree.get_children():
