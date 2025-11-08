@@ -719,6 +719,30 @@ class AdminPanel:
         self.btn_cobro = ttk.Button(cobro_frame, text="💰 REALIZAR COBRO", command=self._realizar_cobro_agua, state="disabled")
         self.btn_cobro.pack(pady=15)
 
+        historial_frame = tk.LabelFrame(main_frame, text="Historial de Pagos", font=("Segoe UI", 12, "bold"), bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
+        historial_frame.pack(fill="both", padx=20, pady=10)
+
+        columns =("Fecha", "Tipo", "Consumo", "Monto", "Estado")
+        self.historial_tree = ttk.treeview(historial_frame, columns=columns, show="headings", height=8)
+
+        for col in columns:
+            self.historial_tree.heading(col, text=col)
+            self.historial_tree.column(col, width=120, anchor="center")
+
+            scrollbar = ttk.Scrollbar(historial_frame, orient="vertical", command=self.historial_tree.yview)
+            self.historial_tree.configure(yscrollcommand=scrollbar.set)
+
+            self.historial_tree.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+
+        def _buscar_cliente_agua(self):
+            nombre = self.agua_nombre.get().strip()
+            dpi = self.agua_dpi.get().strip()
+
+            if not nombre and not dpi:
+                messagebox.showwarning("Atención", "Ingrese al menos el nombre o DPI del cliente")
+                return
+
 
 
 
