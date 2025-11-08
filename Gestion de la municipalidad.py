@@ -49,6 +49,15 @@ class DatabaseManager:
             """)
             conn.commit()
 
+def inicializar_credenciales():
+    with DatabaseManager.connect() as conn:
+        cur = conn.execute("SELECT COUNT(*) AS c FROM credenciales").fetchone()
+        if cur ["c"] == 0:
+            conn.execute("INSERT INTO credenciales (tipo_usuario, ocntrasena) VALUES (?, ?)", ("Administrador", "admin123"))
+            conn.execute("INSERT INTO credenciales (tipo_usuario, ocntrasena) VALUES (?, ?)", ("LectorAgua", "lector456"))
+            conn.execute("INSERT INTO credenciales (tipo_usuario, ocntrasena) VALUES (?, ?)", ("Cocodes","cocode789"))
+            conn.commit()
+
 class Empleados:
     def __init__(self):
         self.empleados = {}
