@@ -1,6 +1,6 @@
 import sqlite3
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 from datetime import datetime, date
 import os
 
@@ -35,47 +35,48 @@ class DatabaseManager:
                     contador TEXT
                 );
             """)
+
             conn.commit()
 
     @staticmethod
     def setup():
         with DatabaseManager.connect() as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS usuarios(
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tipo_usuario TEXT NOT NULL,
-                    contrasena TEXT NOT NULL
-                );
-            """)
-
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS clientes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre TEXT NOT NULL,
-                    dpi TEXT NOT NULL UNIQUE,
-                    direccion TEXT,
-                    numero_casa TEXT,
-                    tipo TEXT NOT NULL CHECK(tipo IN ('fijo','contador')),
-                    total_mes REAL DEFAULT 12.0,
-                    ultimo_pago TEXT,
-                    mora REAL DEFAULT 0.0
-                );
-            """)
-
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS lecturas (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    cliente_id INTEGER NOT NULL,
-                    consumo REAL NOT NULL,
-                    total_pagar REAL NOT NULL,
-                    fecha TEXT NOT NULL,
-                    pagado INTEGER DEFAULT 0,
-                    fecha_pago TEXT,
-                    FOREIGN KEY(cliente_id) REFERENCES clientes(id)
-                );
-            """)
-
-            conn.commit()
+            # Usuarios
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS usuarios(
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        tipo_usuario TEXT NOT NULL,
+                        contrasena TEXT NOT NULL
+                    );
+                """)
+            # Clientes
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS clientes (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nombre TEXT NOT NULL,
+                        dpi TEXT NOT NULL UNIQUE,
+                        direccion TEXT,
+                        numero_casa TEXT,
+                        tipo TEXT NOT NULL CHECK(tipo IN ('fijo','contador')),
+                        total_mes REAL DEFAULT 12.0,
+                        ultimo_pago TEXT,
+                        mora REAL DEFAULT 0.0
+                    );
+                """)
+            # Lecturas
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS lecturas (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        cliente_id INTEGER NOT NULL,
+                        consumo REAL NOT NULL,
+                        total_pagar REAL NOT NULL,
+                        fecha TEXT NOT NULL,
+                        pagado INTEGER DEFAULT 0,
+                        fecha_pago TEXT,
+                        FOREIGN KEY(cliente_id) REFERENCES clientes(id)
+                    );
+                """)
+                conn.commit()
 
 class Usuario:
     def __init__(self, tipo_usuario, contrasena):
@@ -85,13 +86,6 @@ class Usuario:
 
     def guardar(self):
         with DatabaseManager.connect() as conn:
-            conn.execute(f"""
-                CREATE TABLE IF NOT EXISTS {self.tabla} (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tipo_usuario TEXT NOT NULL,
-                    contrasena TEXT NOT NULL
-                );
-            """)
             conn.execute(
                 f"INSERT INTO {self.tabla} (tipo_usuario, contrasena) VALUES (?, ?)",
                 (self.tipo_usuario, self.contrasena)
@@ -101,18 +95,21 @@ class Usuario:
     @classmethod
     def verificar_usuario(cls, contrasena):
         with DatabaseManager.connect() as conn:
-            conn.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {cls.__name__.lower()} (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        tipo_usuario TEXT NOT NULL,
-                        contrasena TEXT NOT NULL
-                    );
-                """)
             cursor = conn.execute(
                 f"SELECT * FROM {cls.__name__.lower()} WHERE contrasena = ?",
                 (contrasena,)
             )
             return cursor.fetchone() is not None
+
+
+class Administrador(Usuario): pass
+
+
+class LectorAgua(Usuario): pass
+
+
+class Cocodes(Usuario): pass
+
 
 #usuarios predeterminados
 def inicializar_credenciales():
@@ -128,17 +125,6 @@ def verificar_credencial(tipo, contrasena):
     with DatabaseManager.connect() as conn:
         cur = conn.execute("SELECT * FROM credenciales WHERE tipo_usuario=? AND contrasena=?", (tipo, contrasena))
         return cur.fetchone() is not None
-
-class Administrador(Usuario):
-    pass
-
-class LectorAgua(Usuario):
-    pass
-
-
-class Cocodes(Usuario):
-    pass
-
 
 class LectorApp:
     def __init__(self, root):
@@ -388,8 +374,7 @@ class AdminPanel:
         menu_bar.add_cascade(label="Boleta de Ornato", menu=menu_ornato)
 
         menu_agua = tk.Menu(menu_bar, tearoff=0)
-        menu_agua.add_command(label="Servicio de Agua",
-                              command=lambda: messagebox.showinfo("Agua", "Funcionalidad en construcción"))
+        menu_agua.add_command(label="Servicio de Agua", command=self._abrir_panel_agua)
         menu_bar.add_cascade(label="Servicio de Agua", menu=menu_agua)
 
         menu_multas = tk.Menu(menu_bar, tearoff=0)
@@ -420,26 +405,29 @@ class AdminPanel:
         tk.Label(self.content, text="Use el submenú para acceder a las opciones de administrador",
                  font=("Segoe UI", 12), bg="#F2F5F9", fg="#58606A").pack()
 
-    def _abrir_panel_usuarios(self):
+    def _abrir_panel_usuarios(self, agua=False):
         for w in self.content.winfo_children():
             w.destroy()
 
-        # registrar, Buscar, Ver todos
+        if agua:
+            panel_agua = self.ServicioAgua(self.content)
+            panel_agua.pack(fill="both", expand=True)
+            return
+
         notebook = ttk.Notebook(self.content)
         notebook.pack(fill="both", expand=True, padx=18, pady=18)
 
-        # Register
+        # Registrar
         register_tab = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(register_tab, text="Registrar")
-
         self._build_register_tab(register_tab)
 
-        # buscar
+        # Buscar
         search_tab = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(search_tab, text="Buscar")
         self._build_search_tab(search_tab)
 
-        #todos los usuarios
+        # Ver todos
         all_tab = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(all_tab, text="Ver todos")
         self._build_all_tab(all_tab)
@@ -465,7 +453,6 @@ class AdminPanel:
 
         btn_frame = tk.Frame(form, bg="#FFFFFF")
         btn_frame.grid(row=len(labels)+1, column=0, columnspan=2, pady=14)
-
         ttk.Button(btn_frame, text="Limpiar", command=self._clear_register).grid(row=0, column=0, padx=8)
         ttk.Button(btn_frame, text="Guardar", command=self._save_register).grid(row=0, column=1, padx=8)
 
@@ -486,27 +473,30 @@ class AdminPanel:
             messagebox.showwarning("Validación", "Los campos Nombre, Número de casa y DPI son obligatorios.")
             return
 
-        # convertir campo Contador a formato de DB
         tipo_contador = "contador" if datos["Contador"] == "Sí" else "fijo"
 
-        with DatabaseManager.connect() as conn:
-            conn.execute("""
-                INSERT INTO usuarios_registrados
-                (nombre, direccion, numero_casa, dpi, nit, servicio_agua, contador)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                datos["Nombre"],
-                datos["Dirección"],
-                datos["Número de casa"],
-                datos["DPI"],
-                datos["NIT"],
-                datos["Solicitar servicio de agua"],
-                tipo_contador
-            ))
-            conn.commit()
+        try:
+            with DatabaseManager.connect() as conn:
+                conn.execute("""
+                    INSERT INTO clientes
+                    (nombre, dpi, direccion, numero_casa, tipo, total_mes, ultimo_pago, mora)
+                    VALUES (?, ?, ?, ?, ?, 12.0, NULL, 0.0)
+                """, (
+                    datos["Nombre"],
+                    datos["DPI"],
+                    datos["Dirección"],
+                    datos["Número de casa"],
+                    tipo_contador
+                ))
+                conn.commit()
 
-        messagebox.showinfo("Éxito", "Usuario registrado correctamente ✅")
-        self._clear_register()
+            messagebox.showinfo("Éxito", "Usuario registrado correctamente ✅")
+            self._clear_register()
+
+        except sqlite3.IntegrityError:
+            messagebox.showerror("Error", "El DPI ya está registrado.")
+        except Exception as e:
+            messagebox.showerror("Error inesperado", str(e))
 
     def _build_search_tab(self, parent):
         container = tk.Frame(parent, bg="#FFFFFF")
@@ -707,84 +697,6 @@ class AdminPanel:
             widget.destroy()
         self.app.crear_login()
 
-    def _abrir_servicio_agua(self):
-        for w in self.content.winfo_children():
-            w.destroy()
-
-        frame = tk.Frame(self.content, bg="#FFFFFF")
-        frame.pack(fill="both", expand=True, padx=20, pady=20)
-
-        tk.Label(frame, text="Servicio de Agua (Administrador)", font=("Segoe UI", 16, "bold"), bg="#FFFFFF").pack(
-            pady=(0, 12))
-
-        form = tk.Frame(frame, bg="#FFFFFF")
-        form.pack()
-
-        tk.Label(form, text="Nombre:", bg="#FFFFFF").grid(row=0, column=0, padx=6, pady=6, sticky="e")
-        self.serv_name = ttk.Entry(form, width=40)
-        self.serv_name.grid(row=0, column=1)
-
-        tk.Label(form, text="DPI:", bg="#FFFFFF").grid(row=1, column=0, padx=6, pady=6, sticky="e")
-        self.serv_dpi = ttk.Entry(form, width=40)
-        self.serv_dpi.grid(row=1, column=1)
-
-        btns = tk.Frame(form, bg="#FFFFFF")
-        btns.grid(row=2, column=0, columnspan=2, pady=10)
-
-        ttk.Button(btns, text="Buscar", command=self._buscar_agua).grid(row=0, column=0, padx=8)
-        ttk.Button(btns, text="Limpiar",
-                   command=lambda: [self.serv_name.delete(0, tk.END), self.serv_dpi.delete(0, tk.END)]).grid(row=0,
-                                                                                                             column=1,
-                                                                                                             padx=8)
-        ttk.Button(btns, text="Regresar", command=self._show_welcome).grid(row=0, column=2, padx=8)
-
-        self.serv_result = tk.Label(frame, text="", font=("Segoe UI", 12), bg="#FFFFFF", fg="#004080")
-        self.serv_result.pack(pady=10)
-
-        ttk.Button(frame, text="Generar Boleta (pendiente)", command=self._generar_boleta).pack(pady=8)
-
-    def _buscar_agua(self):
-        nombre = self.serv_name.get().strip()
-        dpi = self.serv_dpi.get().strip()
-
-        if not nombre or not dpi:
-            messagebox.showwarning("Validación", "Debe ingresar nombre y DPI.")
-            return
-
-        with DatabaseManager.connect() as conn:
-            fila = conn.execute("SELECT * FROM clientes WHERE nombre LIKE ? AND dpi = ?",
-                                (f"%{nombre}%", dpi)).fetchone()
-
-            if not fila:
-                self.serv_result.config(text="Usuario NO encontrado.")
-                self.found_user = None
-                return
-
-            self.found_user = fila
-            if fila["tipo"] == "fijo":
-                calc = self._calcular_mora_fijo(fila)
-                self.serv_result.config(
-                    text=f"Meses adeudados: {calc['meses']}  |  Mora: Q{calc['mora']:.2f}  |  Total: Q{calc['total_deuda']:.2f}")
-            else:
-                # contador: sumar lecturas no pagadas
-                lecturas = conn.execute("SELECT * FROM lecturas WHERE cliente_id=? AND pagado=0 ORDER BY fecha DESC",
-                                        (fila["id"],)).fetchall()
-                if not lecturas:
-                    self.serv_result.config(text="No hay lecturas pendientes para este cliente.")
-                else:
-                    total_sum = sum(self._calcular_mora_lectura(l)["total"] for l in lecturas)
-                    self.serv_result.config(
-                        text=f"Lecturas pendientes: {len(lecturas)}  |  Total a pagar: Q{total_sum:.2f}")
-
-    def _generar_boleta(self):
-        if not hasattr(self, "found_user") or self.found_user is None:
-            messagebox.showwarning("Generar Boleta", "Primero busque un usuario.")
-            return
-        user = self.found_user
-        messagebox.showinfo("Boleta",
-                            f"Boleta de ejemplo para {user['nombre']} (DPI {user['dpi']})\nImplementar PDF/imprimir después.")
-
-    # helper calculation functions
     def _calcular_mora_fijo(self, cliente_row):
         def meses_transcurridos(fecha_str):
             if not fecha_str:
@@ -822,6 +734,77 @@ class AdminPanel:
         mora = max(0, meses) * 25.0
         total = float(lectura_row["total_pagar"]) + mora
         return {"meses": meses, "mora": mora, "total": total}
+
+    def _abrir_panel_agua(self):
+        for w in self.content.winfo_children():
+            w.destroy()
+        frame = tk.Frame(self.content, bg="#FFFFFF")
+        frame.pack(fill="both", expand=True, padx=12, pady=12)
+        self.servicio_agua = ServicioAguaAdmin(frame)
+        self.servicio_agua.pack(fill="both", expand=True)
+
+class ServicioAguaAdmin(ttk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.usuario = None
+
+        # Formulario de búsqueda
+        tk.Label(self, text="Nombre:").grid(row=0, column=0, padx=5, pady=5)
+        self.entry_nombre = tk.Entry(self)
+        self.entry_nombre.grid(row=0, column=1, padx=5, pady=5)
+
+        tk.Label(self, text="DPI:").grid(row=0, column=2, padx=5, pady=5)
+        self.entry_dpi = tk.Entry(self)
+        self.entry_dpi.grid(row=0, column=3, padx=5, pady=5)
+
+        tk.Button(self, text="Buscar", command=self.buscar_cliente).grid(row=0, column=4, padx=5, pady=5)
+
+        # Tabla de resultados
+        self.tree = ttk.Treeview(self, columns=("ID", "Nombre", "DPI", "Mora", "Total Deuda"), show="headings")
+        for col in self.tree["columns"]:
+            self.tree.heading(col, text=col)
+        self.tree.grid(row=1, column=0, columnspan=5, padx=5, pady=5)
+
+        # Botón para generar boleta
+        tk.Button(self, text="Generar Boleta", command=self.generar_boleta).grid(row=2, column=0, padx=5, pady=5)
+
+    def buscar_cliente(self):
+        nombre = self.entry_nombre.get()
+        dpi = self.entry_dpi.get()
+        self.tree.delete(*self.tree.get_children())
+
+        with DatabaseManager.connect() as conn:
+            query = "SELECT * FROM clientes WHERE nombre LIKE ? AND dpi LIKE ?"
+            rows = conn.execute(query, (f"%{nombre}%", f"%{dpi}%")).fetchall()
+
+        for row in rows:
+            mora = self.calcular_mora(row)
+            total_deuda = (row["total_mes"] or 12.0) + mora
+            self.tree.insert("", "end", values=(row["id"], row["nombre"], row["dpi"], mora, total_deuda))
+
+    def calcular_mora(self, cliente_row):
+        # Calcula la mora según la fecha del último pago
+        ultimo_pago = cliente_row["ultimo_pago"]
+        if not ultimo_pago:
+            return 0
+        fecha = datetime.strptime(ultimo_pago, "%Y-%m-%d").date()
+        hoy = date.today()
+        meses = (hoy.year - fecha.year) * 12 + (hoy.month - fecha.month)
+        mora = max(0, meses) * 25.0
+        return mora
+
+    def generar_boleta(self):
+        item = self.tree.selection()
+        if not item:
+            messagebox.showwarning("Aviso", "Seleccione un cliente")
+            return
+        cliente = self.tree.item(item)["values"]
+        messagebox.showinfo("Boleta",
+                            f"Boleta generada ✅\n\n"
+                            f"Nombre: {cliente[1]}\n"
+                            f"DPI: {cliente[2]}\n"
+                            f"Mora: Q{cliente[3]:.2f}\n"
+                            f"Total a pagar: Q{cliente[4]:.2f}")
 
 class AdminAgua:
     def __init__(self, frame):
