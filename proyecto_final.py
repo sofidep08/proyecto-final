@@ -124,7 +124,140 @@ def verificar_credencial(tipo, contrasena):
         return cur.fetchone() is not None
 
 class LectorApp:
+    def __init__(self, ventana, login_app):
+        self.ventana = ventana
+        self.login_app = login_app
+        self.ventana.title("Panel del Lector de Agua")
+        try:
+            self.ventana.state('zoomed')
+        except:
+            self.ventana.geometry("1000x700")
 
+        self.notebook = ttk.Notebook(self.ventana)
+        self.notebook.pack(fill="both", expand=True)
+
+        self.tab_lectura = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab_lectura, text="Hacer Lectura")
+
+        tk.Label(self.tab_lectura, text="Registrar Lectura (usuarios con contador)",
+                 font=("Arial", 13, "bold")).pack(pady=10)
+
+        frm = tk.Frame(self.tab_lectura)
+        frm.pack(pady=8)
+
+        tk.Label(frm, text="Usuario (seleccione):").grid(row=0, column=0, sticky="e", padx=5, pady=6)
+        self.cb_usuarios = ttk.Combobox(frm, width=45, state="readonly")
+        self.cb_usuarios.grid(row=0, column=1, padx=5, pady=6)
+
+        tk.Label(frm, text="Consumo (galones):").grid(row=1, column=0, sticky="e", padx=5, pady=6)
+        self.e_consumo = ttk.Entry(frm, width=30)
+        self.e_consumo.grid(row=1, column=1, padx=5, pady=6)
+
+        tk.Label(frm, text="Fecha (YYYY-MM-DD):").grid(row=2, column=0, sticky="e", padx=5, pady=6)
+        self.e_fecha = ttk.Entry(frm, width=30)
+        self.e_fecha.grid(row=2, column=1, padx=5, pady=6)
+        self.e_fecha.insert(0, datetime.now().strftime("%Y-%m-%d"))
+
+        ttk.Button(self.tab_lectura, text="Cargar usuarios", command=self.cargar_usuarios).pack(pady=6)
+        ttk.Button(self.tab_lectura, text="Guardar Lectura", command=self.guardar_lectura).pack(pady=6)
+
+        self.cargar_usuarios()
+
+        self.tab_ayuda = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab_ayuda, text="Ayuda")
+        ttk.Label(self.tab_ayuda, text="Centro de ayuda del lector de agua", font=("Segoe UI", 16, "bold")).pack(
+            pady=20)
+        ayuda_texto = (
+            "Aquí puedes registrar las lecturas de los medidores.\n\n"
+            "1. Selecciona el usuario del menú desplegable.\n"
+            "2. Ingresa el consumo en galones.\n"
+            "3. Verifica la fecha (se establece automáticamente).\n"
+            "4. Pulsa 'Guardar Lectura' para almacenar el dato.\n\n"
+            "Si tienes problemas, contacta al administrador del sistema."
+
+        )
+        ttk.Label(self.tab_ayuda, text=ayuda_texto, justify="left", font=("Segoe UI", 11)).pack(padx=20, pady=10)
+
+        self.tab_salir = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab_salir, text="Salir")
+        ttk.Label(self.tab_salir, text="¿Deseas cerrar el panel del lector?", font=("Segoe UI", 14)).pack(pady=40)
+        ttk.Button(self.tab_salir, text="Cerrar Sesión", command=self.cerrar_sesion, width=20).pack(pady=20)
+
+
+    def cargar_usuarios(self):
+        with DatabaseManager.connect() as conn:
+            filas = conn.execute("SELECT id, nombre, numero_casa FROM clientes WHERE tipo='contador' ORDER BY nombre").fetchall()
+            lista = [f"{f['id']} - {f['nombre']} (Casa {f['numero_casa']})" for f in filas]
+        self.cb_usuarios['values'] = lista
+        if lista:
+            self.cb_usuarios.current(0)
+
+
+    def guardar_lectura(self):
+        seleccionado = self.cb_usuarios.get()
+        consumo = self.e_consumo.get().strip()
+        fecha = self.e_fecha.get().strip()
+
+        if not seleccionado or not consumo or not fecha:
+            messagebox.showwarning("Atención", "Complete todos los campos.")
+            return
+
+        try:
+            consumo_float = float(consumo)
+            if consumo_float <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Error", "Consumo debe ser un número positivo.")
+            return
+
+        cliente_id = seleccionado.split("-")[0].strip()
+        precio_unitario = 1.00
+        total = consumo_float * precio_unitario
+
+        with DatabaseManager.connect() as conn:
+            conn.execute("""
+                INSERT INTO lecturas(cliente_id, consumo, total_pagar, fecha, pagado)
+                VALUES(?, ?, ?, ?, 0)
+            """, (cliente_id, consumo_float, total, fecha))
+            conn.commit()
+
+        messagebox.showinfo("Guardado", f"Lectura registrada correctamente\nTotal Q{total:.2f}")
+        self.e_consumo.delete(0, tk.END)
+
+    def cerrar_sesion(self):
+        confirm = messagebox.askyesno("Confirmar", "¿Seguro que deseas cerrar sesión?")
+        if confirm:
+            for widget in self.ventana.winfo_children():
+                widget.destroy()
+            self.login_app.crear_login()
+
+class LoginApp:
+    def __init__(self, ventana):
+        self.ventana = ventana
+        DatabaseManager.init_tables()
+        DatabaseManager.setup()
+        inicializar_credenciales()
+        self.crear_login()
+
+    def crear_login(self):
+        for widget in self.ventana.winfo_children():
+            widget.destroy()
+
+        self.ventana.title("SAN FRANCISCO LA UNIÓN")
+        self.ventana.geometry("1100x650")
+        self.ventana.resizable(False, False)
+
+        self.main_frame = tk.Frame(self.ventana, bg="#F6F6F8")
+        self.main_frame.pack(fill="both", expand=True)
+
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        assets_dir = os.path.join(script_dir, "assets")
+        ruta_imagen = os.path.join(assets_dir, "images.jpg")
+
+        if os.path.exists(ruta_imagen):
+            try:
+                if PIL:AVAILABLE:
+                img = Image.open(ruta_imagen)
 
 class Graficos:
     def __init__(self, ventana):
