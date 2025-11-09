@@ -12,11 +12,105 @@ try:
 except ImportError:
     PIL_AVAILABLE = False
 
+DB_NAME = "municipalidad.db"
+
+
+class DatabaseManager:
+    @staticmethod
+    def connect():
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    @staticmethod
+    def init_tables():
+        with DatabaseManager.connect() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS usuarios_registrados (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT,
+                    direccion TEXT,
+                    numero_casa TEXT,
+                    dpi TEXT,
+                    nit TEXT,
+                    servicio_agua TEXT,
+                    contador TEXT
+                );
+            """)
+            conn.commit()
+
+    @staticmethod
+    def setup():
+        with DatabaseManager.connect() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS usuarios(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_usuario TEXT NOT NULL,
+                    contrasena TEXT NOT NULL
+                );
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS clientes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    dpi TEXT NOT NULL UNIQUE,
+                    direccion TEXT,
+                    numero_casa TEXT,
+                    tipo TEXT NOT NULL CHECK(tipo IN ('fijo','contador')),
+                    total_mes REAL DEFAULT 12.0,
+                    ultimo_pago TEXT,
+                    mora REAL DEFAULT 0.0
+                );
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS lecturas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cliente_id INTEGER NOT NULL,
+                    consumo REAL NOT NULL,
+                    total_pagar REAL NOT NULL,
+                    fecha TEXT NOT NULL,
+                    pagado INTEGER DEFAULT 0,
+                    fecha_pago TEXT,
+                    FOREIGN KEY(cliente_id) REFERENCES clientes(id)
+                );
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS credenciales (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_usuario TEXT NOT NULL,
+                    contrasena TEXT NOT NULL
+                );
+            """)
+            conn.commit()
+
+
+def inicializar_credenciales():
+    with DatabaseManager.connect() as conn:
+        cursor = conn.execute("SELECT COUNT(*) as count FROM credenciales")
+        count = cursor.fetchone()['count']
+
+        if count == 0:
+            conn.executemany("""
+                INSERT INTO credenciales (tipo_usuario, contrasena) VALUES (?, ?)
+            """, [
+                ("Administrador", "123"),
+                ("LectorAgua", "456"),
+                ("Cocodes", "789")
+            ])
+            conn.commit()
+
+
+def verificar_credencial(tipo, contrasena):
+    with DatabaseManager.connect() as conn:
+        cur = conn.execute("SELECT * FROM credenciales WHERE tipo_usuario=? AND contrasena=?", (tipo, contrasena))
+        return cur.fetchone() is not None
+
 class LectorApp:
     def __init__(self, ventana, login_app):
         self.ventana = ventana
         self.login_app = login_app
         self.ventana.title("Panel del Lector de Agua")
+
         try:
             self.ventana.state('zoomed')
         except:
@@ -39,22 +133,24 @@ class LectorApp:
         self.cb_usuarios.grid(row=0, column=1, padx=5, pady=6)
 
         tk.Label(frm, text="Consumo (galones):").grid(row=1, column=0, sticky="e", padx=5, pady=6)
-        self.e_consumo = ttk.Entry(frm, width=30)
+        self.e_consumo = tk.Entry(frm, width=33)
         self.e_consumo.grid(row=1, column=1, padx=5, pady=6)
 
         tk.Label(frm, text="Fecha (YYYY-MM-DD):").grid(row=2, column=0, sticky="e", padx=5, pady=6)
-        self.e_fecha = ttk.Entry(frm, width=30)
+        self.e_fecha = tk.Entry(frm, width=33)
         self.e_fecha.grid(row=2, column=1, padx=5, pady=6)
         self.e_fecha.insert(0, datetime.now().strftime("%Y-%m-%d"))
 
-        ttk.Button(self.tab_lectura, text="Cargar usuarios", command=self.cargar_usuarios).pack(pady=6)
-        ttk.Button(self.tab_lectura, text="Guardar Lectura", command=self.guardar_lectura).pack(pady=6)
+        ttk.Button(self.tab_lectura, text="Guardar Lectura", command=self.verificar_guardado).pack(pady=10)
 
         self.cargar_usuarios()
 
         self.tab_ayuda = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_ayuda, text="Ayuda")
-        ttk.Label(self.tab_ayuda, text="Centro de ayuda del lector de agua", font=("Segoe UI", 16, "bold")).pack(pady=20)
+
+        ttk.Label(self.tab_ayuda, text="Centro de ayuda del lector de agua",
+                  font=("Segoe UI", 16, "bold")).pack(pady=20)
+
         ayuda_texto = (
             "Aquí puedes registrar las lecturas de los medidores.\n\n"
             "1. Selecciona el usuario del menú desplegable.\n"
@@ -63,51 +159,102 @@ class LectorApp:
             "4. Pulsa 'Guardar Lectura' para almacenar el dato.\n\n"
             "Si tienes problemas, contacta al administrador del sistema."
         )
-        ttk.Label(self.tab_ayuda, text=ayuda_texto, justify="left", font=("Segoe UI", 11)).pack(padx=20, pady=10)
+        ttk.Label(self.tab_ayuda, text=ayuda_texto, justify="left",
+                  font=("Segoe UI", 11)).pack(padx=20, pady=10)
 
         self.tab_salir = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_salir, text="Salir")
-        ttk.Label(self.tab_salir, text="¿Deseas cerrar el panel del lector?", font=("Segoe UI", 14)).pack(pady=40)
-        ttk.Button(self.tab_salir, text="Cerrar Sesión", command=self.cerrar_sesion, width=20).pack(pady=20)
+
+        ttk.Label(self.tab_salir, text="¿Deseas cerrar el panel del lector?",
+                  font=("Segoe UI", 14)).pack(pady=40)
+        ttk.Button(self.tab_salir, text="Cerrar Sesión",
+                   command=self.cerrar_sesion, width=20).pack(pady=20)
 
     def cargar_usuarios(self):
-        with DatabaseManager.connect() as conn:
-            filas = conn.execute("SELECT id, nombre, numero_casa FROM clientes WHERE tipo='contador' ORDER BY nombre").fetchall()
-            lista = [f"{f['id']} - {f['nombre']} (Casa {f['numero_casa']})" for f in filas]
-        self.cb_usuarios['values'] = lista
-        if lista:
-            self.cb_usuarios.current(0)
+        try:
+            with DatabaseManager.connect() as conn:
+                filas = conn.execute(
+                    "SELECT id, nombre, numero_casa FROM clientes WHERE tipo='contador' ORDER BY nombre"
+                ).fetchall()
+                lista = [f"{f['id']} - {f['nombre']} (Casa {f['numero_casa']})" for f in filas]
+            self.cb_usuarios['values'] = lista
+            if lista:
+                self.cb_usuarios.current(0)
+        except Exception:
+            self.cb_usuarios['values'] = []
+            pass
 
-    def guardar_lectura(self):
-        seleccionado = self.cb_usuarios.get()
+    def verificar_guardado(self):
+        seleccionado = self.cb_usuarios.get().strip()
         consumo = self.e_consumo.get().strip()
         fecha = self.e_fecha.get().strip()
 
-        if not seleccionado or not consumo or not fecha:
-            messagebox.showwarning("Atención", "Complete todos los campos.")
+        self.e_consumo.configure(bg="white")
+        self.e_fecha.configure(bg="white")
+
+        campos_vacios = []
+
+        if not seleccionado:
+            campos_vacios.append("Usuario")
+        if not consumo:
+            campos_vacios.append("Consumo")
+            self.e_consumo.configure(bg="#ffcccc")
+        if not fecha:
+            campos_vacios.append("Fecha")
+            self.e_fecha.configure(bg="#ffcccc")
+
+        if campos_vacios:
+            messagebox.showwarning(
+                "Atención",
+                "Debe llenar todos los campos antes de guardar la lectura."
+            )
+            self.notebook.select(self.tab_lectura)
+            self.e_consumo.focus_set()
             return
+
+        confirmar = messagebox.askyesno(
+            "Confirmar",
+            "¿Está seguro que desea guardar la lectura?"
+        )
+        if confirmar:
+            self.guardar_lectura()
+
+    def guardar_lectura(self):
+        seleccionado = self.cb_usuarios.get().strip()
+        consumo = self.e_consumo.get().strip()
+        fecha = self.e_fecha.get().strip()
 
         try:
             consumo_float = float(consumo)
             if consumo_float <= 0:
                 raise ValueError
         except ValueError:
-            messagebox.showerror("Error", "Consumo debe ser un número positivo.")
+            messagebox.showerror("Error", "El consumo debe ser un número positivo.")
+            self.e_consumo.configure(bg="#ffcccc")
+            self.notebook.select(self.tab_lectura)
             return
 
         cliente_id = seleccionado.split("-")[0].strip()
         precio_unitario = 1.00
         total = consumo_float * precio_unitario
 
-        with DatabaseManager.connect() as conn:
-            conn.execute("""
-                INSERT INTO lecturas(cliente_id, consumo, total_pagar, fecha, pagado)
-                VALUES(?, ?, ?, ?, 0)
-            """, (cliente_id, consumo_float, total, fecha))
-            conn.commit()
+        try:
+            with DatabaseManager.connect() as conn:
+                conn.execute("""
+                            INSERT INTO lecturas(cliente_id, consumo, total_pagar, fecha, pagado)
+                            VALUES (?, ?, ?, ?, 0)
+                        """, (cliente_id, consumo_float, total, fecha))
+                conn.commit()
+        except Exception:
+            pass
 
         messagebox.showinfo("Guardado", f"Lectura registrada correctamente\nTotal Q{total:.2f}")
+
         self.e_consumo.delete(0, tk.END)
+        self.e_consumo.configure(bg="white")
+
+        self.notebook.select(self.tab_lectura)
+        self.cb_usuarios.focus_set()
 
     def cerrar_sesion(self):
         confirm = messagebox.askyesno("Confirmar", "¿Seguro que deseas cerrar sesión?")
@@ -244,7 +391,6 @@ class LoginApp:
             frame.pack(fill="both", expand=True)
             tk.Label(frame, text=f"Panel de {tipo}", font=("Segoe UI", 20, "bold"), bg="#F6F6F8").pack(pady=40)
             ttk.Button(frame, text="Cerrar sesión", command=self.crear_login).pack(pady=12)
-
 
 class Graficos:
     def __init__(self, ventana):
@@ -768,6 +914,10 @@ class AdminPanel:
         ttk.Button(btn_frame, text="🔍 Buscar Cliente", command=self._buscar_cliente_agua).pack(side="left", padx=10)
         ttk.Button(btn_frame, text="🔄 Limpiar", command=self._limpiar_busqueda_agua).pack(side="left", padx=10)
 
+        self.btn_cobro = ttk.Button(btn_frame, text="💰 REALIZAR COBRO",
+                                    command=self._realizar_cobro_agua, state="disabled")
+        self.btn_cobro.pack(side="left", padx=10)
+
         info_frame = tk.LabelFrame(main_frame, text="Información del Cliente", font=("Segoe UI", 12, "bold"),
                                    bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
         info_frame.pack(fill="x", padx=20, pady=10)
@@ -782,10 +932,6 @@ class AdminPanel:
 
         self.deuda_label = tk.Label(cobro_frame, text="", font=("Segoe UI", 12, "bold"), bg="#FFFFFF")
         self.deuda_label.pack(pady=10)
-
-        self.btn_cobro = ttk.Button(cobro_frame, text="💰 REALIZAR COBRO",
-                                    command=self._realizar_cobro_agua, state="disabled")
-        self.btn_cobro.pack(pady=15)
 
         historial_frame = tk.LabelFrame(main_frame, text="Historial de Pagos", font=("Segoe UI", 12, "bold"),
                                         bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
@@ -928,6 +1074,52 @@ Información del Cliente:
         self._calcular_deuda_cliente(cliente)
         self._cargar_historial_pagos(cliente["id"])
 
+    def _realizar_cobro_agua(self):
+        if not hasattr(self, "cliente_seleccionado") or not self.cliente_seleccionado:
+            messagebox.showwarning("Error", "No hay cliente seleccionado")
+            return
+
+        respuesta = messagebox.askyesno(
+            "Confirmar Cobro",
+            f"¿Confirma el cobro para {self.cliente_seleccionado['nombre']}?\n\n"
+            "Esta acción marcará todas las deudas pendientes como pagadas."
+        )
+
+        if not respuesta:
+            return
+
+        try:
+            with DatabaseManager.connect() as conn:
+                fecha_pago = datetime.now().strftime("%Y-%m-%d")
+
+                if self.cliente_seleccionado["tipo"] == "contador":
+                    conn.execute("""
+                        UPDATE lecturas 
+                        SET pagado = 1, fecha_pago = ?
+                        WHERE cliente_id = ? AND pagado = 0
+                    """, (fecha_pago, self.cliente_seleccionado["id"]))
+                else:
+                    conn.execute("""
+                        UPDATE clientes 
+                        SET ultimo_pago = ?, mora = 0.0
+                        WHERE id = ?
+                    """, (fecha_pago, self.cliente_seleccionado["id"]))
+
+                conn.commit()
+
+            messagebox.showinfo(
+                "Cobro Realizado",
+                f"✅ Cobro realizado exitosamente\n\n"
+                f"Cliente: {self.cliente_seleccionado['nombre']}\n"
+                f"Fecha: {fecha_pago}"
+            )
+
+            self._calcular_deuda_cliente(self.cliente_seleccionado)
+            self._cargar_historial_pagos(self.cliente_seleccionado["id"])
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al procesar el cobro: {str(e)}")
+
     def _mostrar_info_cliente(self, cliente):
         info_text = f"""
                 👤 Nombre: {cliente['nombre']}
@@ -1019,49 +1211,6 @@ Información del Cliente:
                     f"Q{lectura['total_pagar']:.2f}",
                     estado
                 ))
-
-
-    def _realizar_cobro_agua(self):
-        if not self.cliente_seleccionado:
-            messagebox.showwarning("Error", "No hay cliente seleccionado")
-            return
-        respuesta = messagebox.askyesno(
-            "Confirmar Cobro",
-            f"¿Confirma el cobro para {self.cliente_seleccionado['nombre']}?\n\n"
-            "Esta acción marcará todas las deudas pendientes como pagadas."
-        )
-
-        if not respuesta:
-            return
-
-        try:
-            with DatabaseManager.connect() as conn:
-                fecha_pago = datetime.now().strftime("%Y-%m-%d")
-
-                if self.cliente_seleccionado["tipo"] == "contador":
-                    conn.execute("""
-                        UPDATE lecturas 
-                        SET pagado = 1, fecha_pago = ?
-                        WHERE cliente_id = ? AND pagado = 0
-                    """, (fecha_pago, self.cliente_seleccionado["id"]))
-                else:
-                    conn.execute("""
-                        UPDATE clientes 
-                        SET ultimo_pago = ?, mora = 0.0
-                        WHERE id = ?
-                    """, (fecha_pago, self.cliente_seleccionado["id"]))
-
-                conn.commit()
-
-            messagebox.showinfo("Cobro Realizado",
-                              f"✅ Cobro realizado exitosamente\n\n"
-                              f"Cliente: {self.cliente_seleccionado['nombre']}\n"
-                              f"Fecha: {fecha_pago}")
-            self._calcular_deuda_cliente(self.cliente_seleccionado)
-            self._cargar_historial_pagos(self.cliente_seleccionado["id"])
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Error al procesar el cobro: {str(e)}")
 
     def _limpiar_busqueda_agua(self):
         self.agua_nombre.delete(0, tk.END)
