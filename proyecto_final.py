@@ -74,6 +74,27 @@ class DatabaseManager:
                     contrasena TEXT NOT NULL
                 );
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS ciudadanos_ornato (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    dpi TEXT UNIQUE NOT NULL,
+                    tiene_nit TEXT,
+                    nit TEXT,
+                    salario REAL NOT NULL
+                );
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS boletas_ornato (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ciudadano_id INTEGER NOT NULL,
+                    monto REAL NOT NULL,
+                    con_multa INTEGER DEFAULT 0,
+                    fecha_pago TEXT NOT NULL,
+                    año INTEGER NOT NULL,
+                    FOREIGN KEY (ciudadano_id) REFERENCES ciudadanos_ornato(id)
+                );
+            """)
             conn.commit()
 
 
@@ -841,6 +862,294 @@ class AdminPanel:
         for widget in self.ventana.winfo_children():
             widget.destroy()
         self.app.crear_login()
+
+    def _abrir_panel_ornato(self):
+        for w in self.content.winfo_children():
+            w.destroy()
+
+        titulo = tk.Label(self.content, text="Boleta de Ornato",
+                          font=("Segoe UI", 20, "bold"), bg="#F2F5F9", fg="#2D3A4A")
+        titulo.pack(pady=20)
+
+        notebook = ttk.Notebook(self.content)
+        notebook.pack(fill="both", expand=True, padx=18, pady=18)
+
+        tab_registrar = tk.Frame(notebook, bg="#FFFFFF")
+        notebook.add(tab_registrar, text="Registrar Ciudadano")
+        self._build_registrar_ornato(tab_registrar)
+
+        tab_cobro = tk.Frame(notebook, bg="#FFFFFF")
+        notebook.add(tab_cobro, text="Cobro de Boleta")
+        self._build_cobro_ornato(tab_cobro)
+
+        tab_ver = tk.Frame(notebook, bg="#FFFFFF")
+        notebook.add(tab_ver, text="Ver Todos")
+        self._build_ver_todos_ornato(tab_ver)
+
+    # ------------------------------
+    # REGISTRAR NUEVO CIUDADANO
+    # ------------------------------
+    def _build_registrar_ornato(self, parent):
+        frame = tk.Frame(parent, bg="#FFFFFF")
+        frame.pack(pady=20)
+
+        tk.Label(frame, text="Nombre:", font=("Segoe UI", 11)).grid(row=0, column=0, sticky="e", pady=5)
+        self.e_nombre_orn = ttk.Entry(frame, width=40)
+        self.e_nombre_orn.grid(row=0, column=1, pady=5, padx=5)
+
+        tk.Label(frame, text="DPI:", font=("Segoe UI", 11)).grid(row=1, column=0, sticky="e", pady=5)
+        self.e_dpi_orn = ttk.Entry(frame, width=40)
+        self.e_dpi_orn.grid(row=1, column=1, pady=5, padx=5)
+
+        tk.Label(frame, text="¿Tiene NIT?", font=("Segoe UI", 11)).grid(row=2, column=0, sticky="e", pady=5)
+        self.var_tiene_nit = tk.StringVar(value="No")
+        cb_tiene_nit = ttk.Combobox(frame, textvariable=self.var_tiene_nit, values=["Sí", "No"], state="readonly",
+                                    width=10)
+        cb_tiene_nit.grid(row=2, column=1, sticky="w", pady=5)
+        cb_tiene_nit.bind("<<ComboboxSelected>>", lambda e: self._toggle_nit_ornato(frame))
+
+        self.lbl_nit = tk.Label(frame, text="NIT:", font=("Segoe UI", 11))
+        self.e_nit_orn = ttk.Entry(frame, width=40)
+
+        tk.Label(frame, text="Salario (Q):", font=("Segoe UI", 11)).grid(row=4, column=0, sticky="e", pady=5)
+        self.e_salario_orn = ttk.Entry(frame, width=40)
+        self.e_salario_orn.grid(row=4, column=1, pady=5, padx=5)
+
+        btn_frame = tk.Frame(frame, bg="#FFFFFF")
+        btn_frame.grid(row=5, column=0, columnspan=2, pady=15)
+        ttk.Button(btn_frame, text="Registrar", command=self._registrar_ciudadano_ornato).grid(row=0, column=0, padx=8)
+        ttk.Button(btn_frame, text="Limpiar", command=self._limpiar_registro_ornato).grid(row=0, column=1, padx=8)
+
+    def _toggle_nit_ornato(self, parent):
+        if self.var_tiene_nit.get() == "Sí":
+            self.lbl_nit.grid(row=3, column=0, sticky="e", pady=5)
+            self.e_nit_orn.grid(row=3, column=1, pady=5, padx=5)
+        else:
+            self.lbl_nit.grid_remove()
+            self.e_nit_orn.grid_remove()
+
+    def _limpiar_registro_ornato(self):
+        self.e_nombre_orn.delete(0, tk.END)
+        self.e_dpi_orn.delete(0, tk.END)
+        self.e_salario_orn.delete(0, tk.END)
+        self.e_nit_orn.delete(0, tk.END)
+        self.var_tiene_nit.set("No")
+        self._toggle_nit_ornato(None)
+
+    def _registrar_ciudadano_ornato(self):
+        nombre = self.e_nombre_orn.get().strip()
+        dpi = self.e_dpi_orn.get().strip()
+        tiene_nit = self.var_tiene_nit.get()
+        nit = self.e_nit_orn.get().strip() if tiene_nit == "Sí" else ""
+        salario = self.e_salario_orn.get().strip()
+
+        if not nombre or not dpi or not salario:
+            messagebox.showwarning("Atención", "Debe llenar todos los campos obligatorios.")
+            return
+
+        try:
+            salario = float(salario)
+        except:
+            messagebox.showerror("Error", "El salario debe ser numérico.")
+            return
+
+        confirmar = messagebox.askyesno("Confirmar Registro", f"¿Desea registrar a {nombre}?")
+        if not confirmar:
+            return
+
+        try:
+            with DatabaseManager.connect() as conn:
+                conn.execute("""
+                    INSERT INTO ciudadanos_ornato (nombre, dpi, tiene_nit, nit, salario)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (nombre, dpi, tiene_nit, nit, salario))
+                conn.commit()
+
+            messagebox.showinfo("Éxito", "Ciudadano registrado correctamente ✅")
+            self._limpiar_registro_ornato()
+            self._cargar_ciudadanos_ornato()  # Refrescar en "Ver Todos"
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo registrar: {e}")
+
+    # ------------------------------
+    # COBRO DE BOLETA
+    # ------------------------------
+    def _build_cobro_ornato(self, parent):
+        main_frame = tk.Frame(parent, bg="#FFFFFF", relief="raised", bd=2)
+        main_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        search_frame = tk.LabelFrame(main_frame, text="Buscar Ciudadano", font=("Segoe UI", 12, "bold"),
+                                     bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
+        search_frame.pack(fill="x", padx=20, pady=20)
+
+        tk.Label(search_frame, text="DPI:", font=("Segoe UI", 10), bg="#FFFFFF").grid(row=0, column=0, sticky="w",
+                                                                                      padx=5, pady=5)
+        self.e_buscar_dpi_orn = ttk.Entry(search_frame, width=30, font=("Segoe UI", 10))
+        self.e_buscar_dpi_orn.grid(row=0, column=1, padx=10, pady=5)
+
+        btn_frame = tk.Frame(search_frame, bg="#FFFFFF")
+        btn_frame.grid(row=1, column=0, columnspan=2, pady=15)
+        ttk.Button(btn_frame, text="🔍 Buscar", command=self._buscar_ciudadano_ornato).pack(side="left", padx=8)
+        ttk.Button(btn_frame, text="🔄 Limpiar", command=self._limpiar_busqueda_ornato).pack(side="left", padx=8)
+
+        info_frame = tk.LabelFrame(main_frame, text="Información del Ciudadano", font=("Segoe UI", 12, "bold"),
+                                   bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
+        info_frame.pack(fill="x", padx=20, pady=10)
+
+        self.info_ciudadano_label = tk.Label(info_frame, text="Busque un ciudadano para ver su información",
+                                             font=("Segoe UI", 11), bg="#FFFFFF", fg="#666666")
+        self.info_ciudadano_label.pack(pady=10)
+
+        cobro_frame = tk.LabelFrame(main_frame, text="Monto a Pagar", font=("Segoe UI", 12, "bold"),
+                                    bg="#FFFFFF", fg="#2D3A4A", padx=15, pady=15)
+        cobro_frame.pack(fill="x", padx=20, pady=10)
+
+        self.monto_label = tk.Label(cobro_frame, text="", font=("Segoe UI", 12, "bold"), bg="#FFFFFF")
+        self.monto_label.pack(pady=10)
+
+        self.btn_pagar_boleta = ttk.Button(main_frame, text="💰 PAGAR BOLETA DE ORNATO",
+                                           command=self._pagar_boleta_ornato, state="disabled")
+        self.btn_pagar_boleta.pack(pady=15)
+
+    def _buscar_ciudadano_ornato(self):
+        dpi = self.e_buscar_dpi_orn.get().strip()
+        if not dpi:
+            messagebox.showwarning("Atención", "Ingrese un DPI para buscar.")
+            return
+
+        with DatabaseManager.connect() as conn:
+            ciud = conn.execute("SELECT * FROM ciudadanos_ornato WHERE dpi = ?", (dpi,)).fetchone()
+
+        if not ciud:
+            messagebox.showwarning("No encontrado", "No se encontró ningún ciudadano con ese DPI.")
+            self._limpiar_info_ornato()
+            return
+
+        self.ciudadano_actual = ciud
+        salario = float(ciud["salario"])
+        año = datetime.now().year
+        con_multa = 1 if datetime.now().month > 2 else 0
+
+        if salario <= 3000:
+            monto = 15 if not con_multa else 30
+        elif salario <= 6000:
+            monto = 50 if not con_multa else 100
+        elif salario <= 9000:
+            monto = 75 if not con_multa else 150
+        elif salario <= 12000:
+            monto = 100 if not con_multa else 200
+        else:
+            monto = 150 if not con_multa else 300
+
+        self.monto_label.config(
+            text=f"💰 Monto a pagar: Q{monto:.2f}\n{'⚠️ Con multa' if con_multa else 'Sin multa'}",
+            fg="#D32F2F" if con_multa else "#2E7D32"
+        )
+        self.info_ciudadano_label.config(
+            text=f"👤 {ciud['nombre']}\n🆔 DPI: {ciud['dpi']}\n💼 Salario: Q{salario:.2f}",
+            fg="#2D3A4A"
+        )
+        self.btn_pagar_boleta.config(state="normal")
+
+    def _pagar_boleta_ornato(self):
+        ciud = getattr(self, "ciudadano_actual", None)
+        if not ciud:
+            return
+
+        salario = float(ciud["salario"])
+        año_actual = datetime.now().year
+        fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+        con_multa = 1 if datetime.now().month > 2 else 0
+
+        # Calcular monto
+        if salario <= 3000:
+            monto = 15 if not con_multa else 30
+        elif salario <= 6000:
+            monto = 50 if not con_multa else 100
+        elif salario <= 9000:
+            monto = 75 if not con_multa else 150
+        elif salario <= 12000:
+            monto = 100 if not con_multa else 200
+        else:
+            monto = 150 if not con_multa else 300
+
+        confirmar = messagebox.askyesno("Confirmar Cobro",
+                                        f"¿Desea cobrar la boleta de {ciud['nombre']}?\nMonto: Q{monto:.2f}")
+        if not confirmar:
+            return
+
+        with DatabaseManager.connect() as conn:
+            pago_existente = conn.execute("""
+                SELECT * FROM boletas_ornato WHERE ciudadano_id=? AND año=?
+            """, (ciud["id"], año_actual)).fetchone()
+
+            if pago_existente:
+                messagebox.showwarning("Aviso", f"El ciudadano ya pagó la boleta del año {año_actual}.")
+                return
+
+            conn.execute("""
+                INSERT INTO boletas_ornato (ciudadano_id, monto, con_multa, fecha_pago, año)
+                VALUES (?, ?, ?, ?, ?)
+            """, (ciud["id"], monto, con_multa, fecha_hoy, año_actual))
+            conn.commit()
+
+        messagebox.showinfo("Pago registrado", f"✅ Boleta pagada correctamente.\nMonto: Q{monto:.2f}")
+        self.btn_pagar_boleta.config(state="disabled")
+        self._cargar_boletas_ornato()
+
+    def _limpiar_busqueda_ornato(self):
+        self.e_buscar_dpi_orn.delete(0, tk.END)
+        self._limpiar_info_ornato()
+
+    def _limpiar_info_ornato(self):
+        self.ciudadano_actual = None
+        self.info_ciudadano_label.config(text="Busque un ciudadano para ver su información", fg="#666666")
+        self.monto_label.config(text="")
+        self.btn_pagar_boleta.config(state="disabled")
+
+    # ------------------------------
+    # VER TODOS LOS PAGOS
+    # ------------------------------
+    def _build_ver_todos_ornato(self, parent):
+        frame = tk.Frame(parent, bg="#FFFFFF")
+        frame.pack(fill="both", expand=True, padx=15, pady=15)
+
+        ttk.Button(frame, text="🔄 Refrescar lista", command=self._cargar_boletas_ornato).pack(pady=10)
+
+        cols = ("id", "nombre", "dpi", "monto", "fecha", "año", "multa")
+        self.tree_ornato = ttk.Treeview(frame, columns=cols, show="headings", height=15)
+        self.tree_ornato.pack(fill="both", expand=True)
+
+        for c, t in zip(cols, ["ID", "Nombre", "DPI", "Monto", "Fecha Pago", "Año", "Multa"]):
+            self.tree_ornato.heading(c, text=t)
+            self.tree_ornato.column(c, width=120, anchor="center")
+
+        self._cargar_boletas_ornato()
+
+    def _cargar_boletas_ornato(self):
+        if not hasattr(self, "tree_ornato"):
+            return
+
+        for i in self.tree_ornato.get_children():
+            self.tree_ornato.delete(i)
+
+        with DatabaseManager.connect() as conn:
+            rows = conn.execute("""
+                SELECT b.id, c.nombre, c.dpi, b.monto, b.fecha_pago, b.año, 
+                       CASE b.con_multa WHEN 1 THEN 'Sí' ELSE 'No' END AS multa
+                FROM boletas_ornato b
+                JOIN ciudadanos_ornato c ON c.id = b.ciudadano_id
+                ORDER BY b.fecha_pago DESC
+            """).fetchall()
+
+        for r in rows:
+            self.tree_ornato.insert("", "end", values=(
+                r["id"], r["nombre"], r["dpi"], f"Q{r['monto']:.2f}", r["fecha_pago"], r["año"], r["multa"]
+            ))
+
+    def _cargar_ciudadanos_ornato(self):
+        """Refresca el tab 'Ver Todos' luego de registrar"""
+        self._cargar_boletas_ornato()
 
     def _abrir_panel_agua(self):
         for w in self.content.winfo_children():
