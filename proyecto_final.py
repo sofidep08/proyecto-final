@@ -5,13 +5,6 @@ from datetime import datetime,date,time
 from database_manager import DatabaseManager, inicializar_credenciales, verificar_credencial
 import os
 
-PIL_AVAILABLE = False
-try:
-    from PIL import Image, ImageTk
-    PIL_AVAILABLE = True
-except ImportError:
-    PIL_AVAILABLE = False
-
 DB_NAME = "municipalidad.db"
 
 
@@ -282,43 +275,33 @@ class LoginApp:
         self.main_frame = tk.Frame(self.ventana, bg="#F6F6F8")
         self.main_frame.pack(fill="both", expand=True)
 
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        assets_dir = os.path.join(script_dir, "assets")
-        ruta_imagen = os.path.join(assets_dir, "images.jpg")
+        ruta_imagen = os.path.join(os.path.dirname(__file__), "photo-1430414734948-17ebbe665afa.png")
 
         if os.path.exists(ruta_imagen):
             try:
-                if PIL_AVAILABLE:
-                    img = Image.open(ruta_imagen)
-                    img = img.resize((1100, 650), Image.Resampling.LANCZOS)
-                    self.bg_photo = ImageTk.PhotoImage(img)
-                    bg_label = tk.Label(self.main_frame, image=self.bg_photo)
-                    bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-                else:
-                    self.bg_photo = tk.PhotoImage(file=ruta_imagen)
-                    bg_label = tk.Label(self.main_frame, image=self.bg_photo)
-                    bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+                self.bg_photo = tk.PhotoImage(file=ruta_imagen)
+                bg_label = tk.Label(self.main_frame, image=self.bg_photo)
+                bg_label.place(x=0, y=0, relwidth=1, relheight=1)
             except Exception as e:
                 print(f"No se pudo cargar la imagen de fondo: {e}")
         else:
-            print("No se encontró la imagen de fondo en:", ruta_imagen)
+            print("⚠️ No se encontró la imagen de fondo:", ruta_imagen)
 
+        # --- Estilo general ---
         style = ttk.Style()
         try:
             style.theme_use("clam")
         except Exception:
             pass
-        style.configure("TNotebook", background="#F6F6F8", borderwidth=0)
-        style.configure("TNotebook.Tab", font=("Segoe UI", 10), padding=[12, 8])
         style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=6)
-        style.configure("TEntry", padding=6)
-        style.configure("Treeview", font=("Segoe UI", 10), rowheight=24)
 
+        # --- Cabecera ---
         header = tk.Frame(self.main_frame, bg="#E9EEF6", height=110)
         header.pack(fill="x")
         tk.Label(header, text="SAN FRANCISCO LA UNIÓN", font=("Segoe UI", 28, "bold"),
                  bg="#E9EEF6", fg="#2D3A4A").place(relx=0.5, rely=0.45, anchor="center")
 
+        # --- Tarjeta de login ---
         card = tk.Frame(self.main_frame, bg="white", bd=0)
         card.place(relx=0.5, rely=0.58, anchor="center")
 
@@ -417,33 +400,20 @@ class Graficos:
         self.main_frame = tk.Frame(self.ventana, bg="#F6F6F8")
         self.main_frame.pack(fill="both", expand=True)
 
-        assets_dir = os.path.join(os.path.dirname(__file__), "assets")
-        ruta_png = os.path.join(assets_dir, "fondo_login.png")
-        ruta_jpg = os.path.join(assets_dir, "fondo_login.jpg")
+        ruta_imagen = os.path.join(os.path.dirname(__file__), "photo-1430414734948-17ebbe665afa.png")
 
-        loaded = False
-        if os.path.exists(ruta_png):
+        if os.path.exists(ruta_imagen):
             try:
-                self.bg_photo = tk.PhotoImage(file=ruta_png)
+                self.bg_photo = tk.PhotoImage(file=ruta_imagen)
                 bg_label = tk.Label(self.main_frame, image=self.bg_photo)
                 bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-                loaded = True
-            except Exception:
-                loaded = False
-
-        if (not loaded) and os.path.exists(ruta_jpg) and PIL_AVAILABLE:
-            try:
-                img = Image.open(ruta_jpg)
-                self.bg_photo = ImageTk.PhotoImage(img)
-                bg_label = tk.Label(self.main_frame, image=self.bg_photo)
-                bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-                loaded = True
-            except Exception:
-                loaded = False
-
-        if not loaded:
+            except Exception as e:
+                print(f"No se pudo cargar la imagen de fondo: {e}")
+        else:
+            print("⚠️ No se encontró la imagen de fondo:", ruta_imagen)
             self.main_frame.configure(bg="#F6F6F8")
 
+        # --- Estilos generales ---
         style = ttk.Style()
         try:
             style.theme_use("clam")
@@ -455,11 +425,13 @@ class Graficos:
         style.configure("TEntry", padding=6)
         style.configure("Treeview", font=("Segoe UI", 10), rowheight=24)
 
+        # --- Encabezado ---
         header = tk.Frame(self.main_frame, bg="#E9EEF6", height=110)
         header.pack(fill="x")
         tk.Label(header, text="SAN FRANCISCO LA UNIÓN", font=("Segoe UI", 28, "bold"),
                  bg="#E9EEF6", fg="#2D3A4A").place(relx=0.5, rely=0.45, anchor="center")
 
+        # --- Tarjeta de inicio de sesión ---
         card = tk.Frame(self.main_frame, bg="white", bd=0)
         card.place(relx=0.5, rely=0.58, anchor="center")
 
