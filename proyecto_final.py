@@ -256,8 +256,28 @@ class LoginApp:
 
         if os.path.exists(ruta_imagen):
             try:
-                if PIL:AVAILABLE:
-                img = Image.open(ruta_imagen)
+                if PIL_AVAILABLE:
+                    img = Image.open(ruta_imagen)
+                    img = img.resize((1100, 650), Image.Resampling.LANCZOS)
+                    self.bg_photo = ImageTk.PhotoImage(img)
+                    bg_label = tk.Label(self.main_frame, image=self.bg_photo)
+                    bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+                else:
+                    self.bg_photo = tk.PhotoImage(file=ruta_imagen)
+                    bg_label = tk.Label(self.main_frame, image=self.bg_photo)
+                    bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+            except Exception as e:
+                print(f"No se pudo cargar la imagen de fondo: {e}")
+        else:
+            print("No se encontró la imagen de fondo en:", ruta_imagen)
+
+        style = ttk.Style()
+        try:
+            style.theme_use("clam")
+        except Exception:
+            pass
+        style.configure("TNotebook", background="#F6F6F8", borderwidth=0)
+
 
 class Graficos:
     def __init__(self, ventana):
