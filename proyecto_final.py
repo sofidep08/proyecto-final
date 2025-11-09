@@ -1,7 +1,7 @@
 import sqlite3
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
-from datetime import datetime, date
+from tkinter import ttk, messagebox
+from datetime import datetime,date,time
 from database_manager import DatabaseManager, inicializar_credenciales, verificar_credencial
 import os
 
@@ -11,117 +11,6 @@ try:
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
-
-DB_NAME = "municipalidad.db"
-
-class DatabaseManager:
-    @staticmethod
-    def connect():
-        conn = sqlite3.connect(DB_NAME)
-        conn.row_factory = sqlite3.Row
-        return conn
-
-    @staticmethod
-    def init_tables():
-        with DatabaseManager.connect() as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS usuarios_registrados (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre TEXT,
-                    direccion TEXT,
-                    numero_casa TEXT,
-                    dpi TEXT,
-                    nit TEXT,
-                    servicio_agua TEXT,
-                    contador TEXT
-                );
-            """)
-            conn.commit()
-
-    @staticmethod
-    def setup():
-        with DatabaseManager.connect() as conn:
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS usuarios(
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        tipo_usuario TEXT NOT NULL,
-                        contrasena TEXT NOT NULL
-                    );
-                """)
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS clientes (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        nombre TEXT NOT NULL,
-                        dpi TEXT NOT NULL UNIQUE,
-                        direccion TEXT,
-                        numero_casa TEXT,
-                        tipo TEXT NOT NULL CHECK(tipo IN ('fijo','contador')),
-                        total_mes REAL DEFAULT 12.0,
-                        ultimo_pago TEXT,
-                        mora REAL DEFAULT 0.0
-                    );
-                """)
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS lecturas (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        cliente_id INTEGER NOT NULL,
-                        consumo REAL NOT NULL,
-                        total_pagar REAL NOT NULL,
-                        fecha TEXT NOT NULL,
-                        pagado INTEGER DEFAULT 0,
-                        fecha_pago TEXT,
-                        FOREIGN KEY(cliente_id) REFERENCES clientes(id)
-                    );
-                """)
-                conn.execute("""
-                        CREATE TABLE IF NOT EXISTS credenciales (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        tipo_usuario TEXT NOT NULL,
-                        contrasena TEXT NOT NULL
-                    );
-                """)
-                conn.commit()
-
-class Usuario:
-    def __init__(self, tipo_usuario, contrasena):
-        self.tipo_usuario = tipo_usuario
-        self.contrasena = contrasena
-        self.tabla = self.__class__.__name__.lower()
-
-    def guardar(self):
-        with DatabaseManager.connect() as conn:
-            conn.execute(
-                f"INSERT INTO {self.tabla} (tipo_usuario, contrasena) VALUES (?, ?)",
-                (self.tipo_usuario, self.contrasena)
-            )
-            conn.commit()
-
-    @classmethod
-    def verificar_usuario(cls, contrasena):
-        with DatabaseManager.connect() as conn:
-            cursor = conn.execute(
-                f"SELECT * FROM {cls.__name__.lower()} WHERE contrasena = ?",
-                (contrasena,)
-            )
-            return cursor.fetchone() is not None
-
-class Administrador(Usuario): pass
-class LectorAgua(Usuario): pass
-class Cocodes(Usuario): pass
-
-def inicializar_credenciales():
-    with DatabaseManager.connect() as conn:
-        cur = conn.execute("SELECT COUNT(*) AS c FROM credenciales").fetchone()
-        if cur["c"] == 0:
-            conn.execute("INSERT INTO credenciales (tipo_usuario, contrasena) VALUES (?, ?)", ("Administrador", "123"))
-            conn.execute("INSERT INTO credenciales (tipo_usuario, contrasena) VALUES (?, ?)", ("LectorAgua", "456"))
-            conn.execute("INSERT INTO credenciales (tipo_usuario, contrasena) VALUES (?, ?)", ("Cocodes", "789"))
-            conn.commit()
-
-def verificar_credencial(tipo, contrasena):
-    with DatabaseManager.connect() as conn:
-        cur = conn.execute("SELECT * FROM credenciales WHERE tipo_usuario=? AND contrasena=?", (tipo, contrasena))
-        return cur.fetchone() is not None
 
 class LectorApp:
     def __init__(self, ventana, login_app):
@@ -165,8 +54,7 @@ class LectorApp:
 
         self.tab_ayuda = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_ayuda, text="Ayuda")
-        ttk.Label(self.tab_ayuda, text="Centro de ayuda del lector de agua", font=("Segoe UI", 16, "bold")).pack(
-            pady=20)
+        ttk.Label(self.tab_ayuda, text="Centro de ayuda del lector de agua", font=("Segoe UI", 16, "bold")).pack(pady=20)
         ayuda_texto = (
             "Aquí puedes registrar las lecturas de los medidores.\n\n"
             "1. Selecciona el usuario del menú desplegable.\n"
@@ -174,7 +62,6 @@ class LectorApp:
             "3. Verifica la fecha (se establece automáticamente).\n"
             "4. Pulsa 'Guardar Lectura' para almacenar el dato.\n\n"
             "Si tienes problemas, contacta al administrador del sistema."
-
         )
         ttk.Label(self.tab_ayuda, text=ayuda_texto, justify="left", font=("Segoe UI", 11)).pack(padx=20, pady=10)
 
@@ -183,7 +70,6 @@ class LectorApp:
         ttk.Label(self.tab_salir, text="¿Deseas cerrar el panel del lector?", font=("Segoe UI", 14)).pack(pady=40)
         ttk.Button(self.tab_salir, text="Cerrar Sesión", command=self.cerrar_sesion, width=20).pack(pady=20)
 
-
     def cargar_usuarios(self):
         with DatabaseManager.connect() as conn:
             filas = conn.execute("SELECT id, nombre, numero_casa FROM clientes WHERE tipo='contador' ORDER BY nombre").fetchall()
@@ -191,7 +77,6 @@ class LectorApp:
         self.cb_usuarios['values'] = lista
         if lista:
             self.cb_usuarios.current(0)
-
 
     def guardar_lectura(self):
         seleccionado = self.cb_usuarios.get()
@@ -277,6 +162,88 @@ class LoginApp:
         except Exception:
             pass
         style.configure("TNotebook", background="#F6F6F8", borderwidth=0)
+        style.configure("TNotebook.Tab", font=("Segoe UI", 10), padding=[12, 8])
+        style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=6)
+        style.configure("TEntry", padding=6)
+        style.configure("Treeview", font=("Segoe UI", 10), rowheight=24)
+
+        header = tk.Frame(self.main_frame, bg="#E9EEF6", height=110)
+        header.pack(fill="x")
+        tk.Label(header, text="SAN FRANCISCO LA UNIÓN", font=("Segoe UI", 28, "bold"),
+                 bg="#E9EEF6", fg="#2D3A4A").place(relx=0.5, rely=0.45, anchor="center")
+
+        card = tk.Frame(self.main_frame, bg="white", bd=0)
+        card.place(relx=0.5, rely=0.58, anchor="center")
+
+        tk.Label(card, text="Iniciar sesión", font=("Segoe UI", 16, "bold"),
+                 bg="white", fg="#2D3A4A").pack(pady=(12, 6))
+
+        inner = tk.Frame(card, bg="white")
+        inner.pack(padx=24, pady=12)
+
+        tk.Label(inner, text="Usuario", font=("Segoe UI", 11),
+                 bg="white", fg="#505050").grid(row=0, column=0, sticky="w", pady=(0, 4))
+
+        self.tipo_usuario = tk.StringVar()
+        opciones = ["Administrador", "LectorAgua", "Cocodes"]
+        combo = ttk.Combobox(inner, textvariable=self.tipo_usuario, values=opciones,
+                             state="readonly", width=34, font=("Segoe UI", 10))
+        combo.set("Selecciona un usuario")
+        combo.grid(row=1, column=0, pady=(0, 8))
+
+        tk.Label(inner, text="Contraseña", font=("Segoe UI", 11),
+                 bg="white", fg="#505050").grid(row=2, column=0, sticky="w", pady=(6, 4))
+
+        self.entry_pass = ttk.Entry(inner, show="*", width=36)
+        self.entry_pass.grid(row=3, column=0)
+
+        btn_frame = tk.Frame(card, bg="white")
+        btn_frame.pack(pady=14)
+
+        iniciar_btn = ttk.Button(btn_frame, text="Iniciar Sesión", command=self.verificar_login)
+        iniciar_btn.grid(row=0, column=1, padx=6)
+
+        salir_btn = ttk.Button(btn_frame, text="Salir del programa", command=self._confirm_quit)
+        salir_btn.grid(row=0, column=0, padx=6)
+
+    def _confirm_quit(self):
+        if messagebox.askyesno("Salir", "¿Deseas salir del programa?"):
+            self.ventana.quit()
+
+    def verificar_login(self):
+        tipo = self.tipo_usuario.get()
+        contra = self.entry_pass.get()
+
+        if tipo == "Selecciona un usuario" or not tipo:
+            messagebox.showwarning("Atención", "Debes seleccionar un tipo de usuario.")
+            return
+
+        if not contra:
+            messagebox.showwarning("Atención", "Debes ingresar una contraseña.")
+            return
+
+        if verificar_credencial(tipo, contra):
+            messagebox.showinfo("Bienvenido", f"Inicio de sesión exitoso como {tipo}")
+            self.mostrar_interfaz_usuario(tipo)
+        else:
+            messagebox.showerror("Error", "Contraseña incorrecta")
+
+    def mostrar_interfaz_usuario(self, tipo):
+        if tipo == "Administrador":
+            for widget in self.ventana.winfo_children():
+                widget.destroy()
+            AdminPanel(self.ventana, self)
+        elif tipo == "LectorAgua":
+            for widget in self.ventana.winfo_children():
+                widget.destroy()
+            LectorApp(self.ventana, self)
+        else:
+            for widget in self.ventana.winfo_children():
+                widget.destroy()
+            frame = tk.Frame(self.ventana, bg="#F6F6F8")
+            frame.pack(fill="both", expand=True)
+            tk.Label(frame, text=f"Panel de {tipo}", font=("Segoe UI", 20, "bold"), bg="#F6F6F8").pack(pady=40)
+            ttk.Button(frame, text="Cerrar sesión", command=self.crear_login).pack(pady=12)
 
 
 class Graficos:
@@ -407,7 +374,7 @@ class Graficos:
             AdminPanel(self.ventana, self)
         elif tipo == "LectorAgua":
             lector_win = tk.Toplevel(self.ventana)
-            LectorApp(lector_win)
+            LectorApp(lector_win, self)
         else:
             frame = tk.Frame(self.ventana, bg="#F6F6F8")
             frame.pack(fill="both", expand=True)
