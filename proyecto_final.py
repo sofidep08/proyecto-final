@@ -1,7 +1,8 @@
 import sqlite3
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 from datetime import datetime, date
+from database_manager import DatabaseManager, inicializar_credenciales, verificar_credencial
 import os
 
 PIL_AVAILABLE = False
@@ -99,8 +100,8 @@ class Usuario:
     def verificar_usuario(cls, contrasena):
         with DatabaseManager.connect() as conn:
             cursor = conn.execute(
-            f"SELECT * FROM {cls.__name__.lower()} WHERE contrasena = ?",
-    (contrasena,)
+                f"SELECT * FROM {cls.__name__.lower()} WHERE contrasena = ?",
+                (contrasena,)
             )
             return cursor.fetchone() is not None
 
@@ -110,15 +111,12 @@ class Cocodes(Usuario): pass
 
 def inicializar_credenciales():
     with DatabaseManager.connect() as conn:
-        conn.execute("DELETE FROM credenciales")
-        conn.executemany("""
-            INSERT INTO credenciales (tipo_usuario, contrasena) VALUES (?, ?)
-        """, [
-            ("Administrador", "123"),
-            ("LectorAgua", "456"),
-            ("Cocodes", "789")
-        ])
-        conn.commit()
+        cur = conn.execute("SELECT COUNT(*) AS c FROM credenciales").fetchone()
+        if cur["c"] == 0:
+            conn.execute("INSERT INTO credenciales (tipo_usuario, contrasena) VALUES (?, ?)", ("Administrador", "123"))
+            conn.execute("INSERT INTO credenciales (tipo_usuario, contrasena) VALUES (?, ?)", ("LectorAgua", "456"))
+            conn.execute("INSERT INTO credenciales (tipo_usuario, contrasena) VALUES (?, ?)", ("Cocodes", "789"))
+            conn.commit()
 
 def verificar_credencial(tipo, contrasena):
     with DatabaseManager.connect() as conn:
@@ -126,90 +124,7 @@ def verificar_credencial(tipo, contrasena):
         return cur.fetchone() is not None
 
 class LectorApp:
-    def __init__(self, ventana):
-        self.ventana = ventana
-        self.ventana.title("Panel del Lector de Agua")
-        self.ventana.state('zoomed')
 
-        self.notebook = ttk.Notebook(self.ventana)
-        self.notebook.pack(fill="both", expand=True)
-
-        self.tab_lectura = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_lectura, text="Hacer Lectura")
-
-        frm = ttk.Frame(self.tab_lectura, padding=20)
-        frm.pack(pady=20)
-
-        tk.Label(frm, text="Usuario (seleccione):").grid(row=0, column=0, sticky="e", padx=5, pady=6)
-        self.cb_usuarios = ttk.Combobox(frm, width=45, state="readonly")
-        self.cb_usuarios.grid(row=0, column=1, padx=5, pady=6)
-
-        tk.Label(frm, text="Consumo (galones):").grid(row=1, column=0, sticky="e", padx=5, pady=6)
-        self.e_consumo = ttk.Entry(frm, width=30)
-        self.e_consumo.grid(row=1, column=1, padx=5, pady=6)
-
-        tk.Label(frm, text="Fecha (YYYY-MM-DD):").grid(row=2, column=0, sticky="e", padx=5, pady=6)
-        self.e_fecha = ttk.Entry(frm, width=30)
-        self.e_fecha.grid(row=2, column=1, padx=5, pady=6)
-        self.e_fecha.insert(0, datetime.now().strftime("%Y-%m-%d"))
-
-        ttk.Button(root, text="Cargar usuarios", command=self.cargar_usuarios).pack(pady=6)
-        ttk.Button(root, text="Guardar Lectura", command=self.guardar_lectura).pack(pady=6)
-        ttk.Button(root, text="Cerrar sesión", command=self.root.destroy).pack(pady=10)
-
-        self.cargar_usuarios()
-
-        self.tab_ayuda = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_ayuda, text="Ayuda")
-
-        ttk.Label(self.tab_ayuda, text="Centro de ayuda del lector de agua", font=("Segoe UI", 16, "bold")).pack(pady=20)
-        ayuda_texto = (
-            "Aquí puedes registar las lecturas de los medidores.\n"
-            "1. Ingresa el código del medidor.\n"
-            "2. Escribe la lectura actual en galones.\n"
-            "3. Pulsa 'Guardar Lectura' para almacenar el dato.\n"
-            "Si tienes problemas, contacta al administrador del sistema."
-        )
-        ttk.Label(self.tab_ayuda, text=ayuda_texto, justify="left", font=("Segoe UI", 11)).pack(padx=20, pady=10)
-
-        self.tab_salir = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_salir, text="Salir")
-        ttk.Label(self.tab_salir, text="¿Deseas cerrar el panel del lector?", font=("Segoe UI", 14)).pack(pady=40)
-        ttk.Button(self.tab_salir, text="Cerrar Sesión", command=self.cerrar_sesion).pack(pady=20)
-
-    def cargar_usuarios(self):
-        with DatabaseManager.connect() as conn:
-            filas = conn.execute("SELECT id, nombre, numero_casa FROM clientes WHERE tipo='contador' ORDER BY nombre").fetchall()
-            lista = [f"{f['id']} - {f['nombre']} (Casa {f['numero_casa']})" for f in filas]
-        self.cb_usuarios['values'] = lista
-        if lista:
-            self.cb_usuarios.current(0)
-
-    def guardar_lectura(self):
-        seleccionado = slef.cb_usuarios.get()
-        consumo = self.e_consumo.get().strip()
-        fecha = self.e_fecha.get().strip()
-
-        if not seleccionado or not consumo or not fecha:
-            messagebox.showwarning("Atención", "Complete todos los campos.")
-            return
-
-        try:
-            consumo_float = float(consumo)
-            if consumo_float <= 0:
-                raise ValueError
-        except ValueError:
-            messagebox.showerror("Error", "Consumo debe ser un número positivo.")
-            return
-
-
-
-    def cerrar_sesion(self):
-        confirm = messagebox.askyesno("Confirmar", "¿Seguro que deseas cerrar sesión?")
-        if confirm:
-            self.ventana.destroy()
-            import main
-            main.Graficos(tk.Tk())
 
 class Graficos:
     def __init__(self, ventana):
@@ -237,24 +152,31 @@ class Graficos:
         self.main_frame.pack(fill="both", expand=True)
 
         assets_dir = os.path.join(os.path.dirname(__file__), "assets")
-        ruta_imagen = os.path.join(assets_dir, "images.jpg")
+        ruta_png = os.path.join(assets_dir, "fondo_login.png")
+        ruta_jpg = os.path.join(assets_dir, "fondo_login.jpg")
 
         loaded = False
-        if os.path.exists(ruta_imagen):
+        if os.path.exists(ruta_png):
             try:
-                if PIL_AVAILABLE:
-                    img = Image.open(ruta_imagen)
-                    img = img.resize((1100, 650), Image.Resampling.LANCZOS)
-                    self.bg_photo = ImageTk.PhotoImage(img)
-                else:
-                    self.bg_photo = tk.PhotoImage(file=ruta_imagen)
-
+                self.bg_photo = tk.PhotoImage(file=ruta_png)
                 bg_label = tk.Label(self.main_frame, image=self.bg_photo)
                 bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-            except Exception as e:
-                print(f"No se pudo cargar la imagen de fondo: {e}")
-            else:
-                print("No se encontró la imagen de fondo en:", ruta_imagen)
+                loaded = True
+            except Exception:
+                loaded = False
+
+        if (not loaded) and os.path.exists(ruta_jpg) and PIL_AVAILABLE:
+            try:
+                img = Image.open(ruta_jpg)
+                self.bg_photo = ImageTk.PhotoImage(img)
+                bg_label = tk.Label(self.main_frame, image=self.bg_photo)
+                bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+                loaded = True
+            except Exception:
+                loaded = False
+
+        if not loaded:
+            self.main_frame.configure(bg="#F6F6F8")
 
         style = ttk.Style()
         try:
@@ -317,14 +239,11 @@ class Graficos:
         if tipo == "Selecciona un usuario" or not tipo:
             messagebox.showwarning("Atención", "Debes seleccionar un tipo de usuario.")
             return
-
         if not contra:
             messagebox.showwarning("Atención", "Debes ingresar una contraseña.")
             return
-
         if verificar_credencial(tipo, contra):
-            messagebox.showinfo("Bienvenido", f"Inicio de sesión exitoso como {tipo}")
-            self.mostrar_interfaz_usuario(tipo)  # 🔹 Aquí está la clave
+            self.mostrar_interfaz_usuario(tipo)
         else:
             messagebox.showerror("Error", "Contraseña incorrecta")
 
@@ -339,7 +258,7 @@ class Graficos:
         else:
             frame = tk.Frame(self.ventana, bg="#F6F6F8")
             frame.pack(fill="both", expand=True)
-            tk.Label(frame, text=f"Panel de {tipo}", font=("Segoe UI", 20, "bold"), bg="#F6F6F8").pack(pady=40)
+            tk.Label(frame, text="Panel de {tipo}", font=("Segoe UI", 20, "bold"),bg="#F6F6F8").pack(pady=40)
             ttk.Button(frame, text="Cerrar sesión", command=self.crear_login).pack(pady=12)
 
 class AdminPanel:
