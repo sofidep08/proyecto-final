@@ -293,7 +293,7 @@ class Graficos:
             LectorMultasPanel(self.ventana, self, usuario=tipo, header_bg="#AF69CD")
         elif tipo == "LectorAgua":
             LectorAguaPanel(self.ventana, self, usuario=tipo, header_bg="#008081")
-
+#admin panel
 class AdminPanel:
     def __init__(self, ventana, app, usuario="Administrador", header_bg="#DCE9FF"):
         self.ventana = ventana
@@ -1917,7 +1917,7 @@ class LectorMultasPanel:
             "creado_por": vals[6],
             "fecha_creacion": vals[7]
         }
-
+#panel de lector de agua
 class LectorAguaPanel:
     TARIFA_POR_M3 = 5.0
     def __init__(self, ventana, app, usuario="LectorAgua", header_bg="#E6F3FF"):
@@ -1964,7 +1964,6 @@ class LectorAguaPanel:
 
         tk.Label(self.content, text="Use el submenú para acceder a las opciones del lector de agua",
                  font=("Segoe UI", 12), bg="#F2F5F9", fg="#58606A").pack()
-
 
     def cerrar_sesion(self):
         for widget in self.ventana.winfo_children():
@@ -2096,6 +2095,7 @@ class LectorAguaPanel:
             self._limpiar_form_lectura()
         except Exception as e:
             messagebox.showerror("Error", f"Error al guardar la lectura: {str(e)}")
+
 # Programa principal
 if __name__ == "__main__":
     DatabaseManager.init_tables()
