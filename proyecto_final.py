@@ -368,26 +368,34 @@ class AdminPanel:
         for w in self.content.winfo_children():
             w.destroy()
 
-        titulo = tk.Label(self.content, text="Boleta de Ornato",
-                          font=("Segoe UI", 20, "bold"), bg="#F2F5F9", fg="#2D3A4A")
-        titulo.pack(pady=20)
+        style = ttk.Style()
+        style.configure(
+            "Big.TNotebook",
+            background="#FFFFFF",
+            padding=10
+        )
+        style.configure(
+            "Big.TNotebook.Tab",
+            font=("Segoe UI", 12, "bold"),
+            padding=[10, 8]
+        )
 
-        notebook = ttk.Notebook(self.content)
+        notebook = ttk.Notebook(self.content, style="Big.TNotebook")
         notebook.pack(fill="both", expand=True, padx=18, pady=18)
 
         # --- Tab para registrar ciudadanos ---
         tab_registrar = tk.Frame(notebook, bg="#FFFFFF")
-        notebook.add(tab_registrar, text="Registrar Ciudadano")
+        notebook.add(tab_registrar, text="🧾 Registrar Ciudadano")
         self._build_registrar_ornato(tab_registrar)
 
         # --- Tab para cobro ---
         tab_cobro = tk.Frame(notebook, bg="#FFFFFF")
-        notebook.add(tab_cobro, text="Cobro de Boleta")
+        notebook.add(tab_cobro, text="💰 Cobro de Boleta")
         self._build_cobro_ornato(tab_cobro)
 
         # --- Tab para ver todos ---
         tab_ver = tk.Frame(notebook, bg="#FFFFFF")
-        notebook.add(tab_ver, text="Ver Todos")
+        notebook.add(tab_ver, text="📋 Ver Todos")
         self._build_ver_todos_ornato(tab_ver)
 
     def _build_registrar_ornato(self, parent):
@@ -1642,7 +1650,8 @@ class CocodesPanel:
             messagebox.showwarning("Validación", "Nombre completo, DPI y Tipo de multa son obligatorios.")
             return
 
-        fecha = datetime.datetime.now().isoformat(sep=" ", timespec="seconds")
+        fecha = datetime.now().isoformat(sep=" ", timespec="seconds")
+
         with DatabaseManager.connect() as conn:
             conn.execute("""
                 INSERT INTO multas (nombre_completo, dpi, tipo_multa, detalle_otro, estado, creado_por, fecha_creacion)
@@ -1912,7 +1921,6 @@ class LectorMultasPanel:
 
 class LectorAguaPanel:
     TARIFA_POR_M3 = 5.0
-
     def __init__(self, ventana, app, usuario="LectorAgua", header_bg="#E6F3FF"):
         self.ventana = ventana
         self.app = app
@@ -1968,15 +1976,28 @@ class LectorAguaPanel:
         for w in self.content.winfo_children():
             w.destroy()
 
-        titulo = tk.Label(self.content, text="Lectura de Agua",
-                          font=("Segoe UI", 20, "bold"), bg="#F2F5F9", fg="#2D3A4A")
-        titulo.pack(pady=20)
+        style = ttk.Style()
+        style.configure(
+            "Big.TNotebook",
+            background="#FFFFFF",
+            padding=10
+        )
+        style.configure(
+            "Big.TNotebook.Tab",
+            font=("Segoe UI", 12, "bold"),
+            padding=[10, 8]
+        )
+        style.map(
+            "Big.TNotebook.Tab",
+            background=[("selected", "#DCE9FF")],
+            foreground=[("selected", "#1B3556")]
+        )
 
-        notebook = ttk.Notebook(self.content)
+        notebook = ttk.Notebook(self.content, style="Big.TNotebook")
         notebook.pack(fill="both", expand=True, padx=18, pady=18)
 
         generar_tab = tk.Frame(notebook, bg="#FFFFFF")
-        notebook.add(generar_tab, text="Generar lectura")
+        notebook.add(generar_tab, text="📊 Generar lectura")
         self._build_generar_lectura_tab(generar_tab)
 
     def _build_generar_lectura_tab(self, parent):
@@ -1984,25 +2005,46 @@ class LectorAguaPanel:
         frame = tk.Frame(parent, bg="#FFFFFF")
         frame.pack(padx=20, pady=20, anchor="n")
 
-        tk.Label(frame, text="Elegir usuario (con contador):", bg="#FFFFFF").grid(row=0, column=0, sticky="w", **pad)
-        self.lista_usuarios_cb = ttk.Combobox(frame, values=self._obtener_usuarios_con_contador(), state="readonly", width=60)
-        self.lista_usuarios_cb.grid(row=0, column=1, **pad)
+        titulo = tk.Label(frame, text="📊 Generar Lectura de Agua",
+                          font=("Segoe UI", 16, "bold"), bg="#FFFFFF", fg="#2D3A4A")
+        titulo.grid(row=0, column=0, columnspan=2, pady=(0, 15))
+
+        tk.Label(frame, text="Elegir usuario (con contador):", bg="#FFFFFF",
+                 font=("Segoe UI", 11)).grid(row=1, column=0, sticky="w", **pad)
+        self.lista_usuarios_cb = ttk.Combobox(
+            frame,
+            values=self._obtener_usuarios_con_contador(),
+            state="readonly",
+            width=50,
+            font=("Segoe UI", 10)
+        )
+        self.lista_usuarios_cb.grid(row=1, column=1, **pad)
         if self.lista_usuarios_cb['values']:
             self.lista_usuarios_cb.current(0)
 
-        tk.Label(frame, text="Consumo (m³):", bg="#FFFFFF").grid(row=1, column=0, sticky="w", **pad)
-        self.consumo_entry = ttk.Entry(frame, width=30)
-        self.consumo_entry.grid(row=1, column=1, sticky="w", **pad)
+        tk.Label(frame, text="Consumo (m³):", bg="#FFFFFF", font=("Segoe UI", 11)).grid(
+            row=2, column=0, sticky="w", **pad)
+        self.consumo_entry = ttk.Entry(frame, width=50, font=("Segoe UI", 10))
+        self.consumo_entry.grid(row=2, column=1, sticky="w", **pad)
 
-        tk.Label(frame, text="Fecha (auto):", bg="#FFFFFF").grid(row=2, column=0, sticky="w", **pad)
-        self.fecha_label = tk.Label(frame, text=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), bg="#FFFFFF")
-        self.fecha_label.grid(row=2, column=1, sticky="w", **pad)
+        tk.Label(frame, text="Fecha (auto):", bg="#FFFFFF", font=("Segoe UI", 11)).grid(
+            row=3, column=0, sticky="w", **pad)
+        self.fecha_label = tk.Label(frame,width=60,
+                                    text=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    bg="#FFFFFF",
+                                    font=("Segoe UI", 10))
+        self.fecha_label.grid(row=3, column=1, sticky="w", **pad)
 
         btns = tk.Frame(frame, bg="#FFFFFF")
-        btns.grid(row=3, column=0, columnspan=2, pady=12)
+        btns.grid(row=4, column=0, columnspan=2, pady=16)
 
-        ttk.Button(btns, text="🧹 Limpiar", command=self._limpiar_form_lectura).pack(side="left", padx=6)
-        ttk.Button(btns, text="💾 Guardar", command=self._guardar_lectura).pack(side="left", padx=6)
+        style = ttk.Style()
+        style.configure("Big.TButton", font=("Segoe UI", 11, "bold"), padding=(12, 6))
+
+        ttk.Button(btns, text="🧹 Limpiar", style="Big.TButton",
+                   command=self._limpiar_form_lectura).pack(side="left", padx=8)
+        ttk.Button(btns, text="💾 Guardar", style="Big.TButton",
+                   command=self._guardar_lectura).pack(side="left", padx=8)
 
     def _obtener_usuarios_con_contador(self):
         with DatabaseManager.connect() as conn:
