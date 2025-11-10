@@ -446,13 +446,11 @@ class Graficos:
         style.configure("TEntry", padding=6)
         style.configure("Treeview", font=("Segoe UI", 10), rowheight=24)
 
-        # --- Encabezado ---
         header = tk.Frame(self.main_frame, bg="#E9EEF6", height=110)
         header.pack(fill="x")
         tk.Label(header, text="SAN FRANCISCO LA UNIÓN", font=("Segoe UI", 28, "bold"),
                  bg="#E9EEF6", fg="#2D3A4A").place(relx=0.5, rely=0.45, anchor="center")
 
-        # --- Tarjeta de inicio de sesión ---
         card = tk.Frame(self.main_frame, bg="white", bd=0)
         card.place(relx=0.5, rely=0.58, anchor="center")
 
@@ -727,9 +725,7 @@ class AdminPanel:
             self.search_tree.delete(i)
 
         for r in rows:
-            self.search_tree.insert("", "end", values=(r["id"], r["nombre"], r["direccion"],
-                                                       r["numero_casa"], r["dpi"], r["nit"],
-                                                       r["servicio_agua"], r["contador"]))
+            self.search_tree.insert("", "end", values=(r["id"], r["nombre"], r["direccion"],r["numero_casa"], r["dpi"], r["nit"],r["servicio_agua"], r["contador"]))
 
     def _build_all_tab(self, parent):
         top = tk.Frame(parent, bg="#FFFFFF")
@@ -756,9 +752,7 @@ class AdminPanel:
             cur = conn.execute("SELECT * FROM usuarios_registrados ORDER BY nombre COLLATE NOCASE")
             rows = cur.fetchall()
         for r in rows:
-            self.all_tree.insert("", "end", values=(r["id"], r["nombre"], r["direccion"],
-                                                    r["numero_casa"], r["dpi"], r["nit"],
-                                                    r["servicio_agua"], r["contador"]))
+            self.all_tree.insert("", "end", values=(r["id"], r["nombre"], r["direccion"],r["numero_casa"], r["dpi"], r["nit"],r["servicio_agua"], r["contador"]))
 
     def _get_selected_from_tree(self, tree):
         sel = tree.selection()
@@ -873,17 +867,14 @@ class AdminPanel:
         notebook = ttk.Notebook(self.content)
         notebook.pack(fill="both", expand=True, padx=18, pady=18)
 
-        # --- Tab para registrar ciudadanos ---
         tab_registrar = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(tab_registrar, text="Registrar Ciudadano")
         self._build_registrar_ornato(tab_registrar)
 
-        # --- Tab para cobro ---
         tab_cobro = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(tab_cobro, text="Cobro de Boleta")
         self._build_cobro_ornato(tab_cobro)
 
-        # --- Tab para ver todos ---
         tab_ver = tk.Frame(notebook, bg="#FFFFFF")
         notebook.add(tab_ver, text="Ver Todos")
         self._build_ver_todos_ornato(tab_ver)
@@ -1039,7 +1030,6 @@ class AdminPanel:
         fecha_hoy = datetime.now().strftime("%Y-%m-%d")
         con_multa = 1 if datetime.now().month > 2 else 0
 
-        # Calcular monto
         if salario <= 3000:
             monto = 15 if not con_multa else 30
         elif salario <= 6000:
@@ -1051,7 +1041,6 @@ class AdminPanel:
         else:
             monto = 150 if not con_multa else 300
 
-        # Confirmar cobro
         confirmar = messagebox.askyesno(
             "Confirmar Cobro",
             f"¿Desea cobrar la boleta de {ciud['nombre']}?\nMonto: Q{monto:.2f}"
