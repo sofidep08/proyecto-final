@@ -5,7 +5,7 @@ import datetime
 import tkinter.font as tkfont
 from datetime import datetime, date
 
-DB_NAME = "municipalidad.db"
+DB_NAME = "BD_municipalidad.db"
 def _add_header_footer(ventana, title_text, usuario_text, header_bg):
     header = tk.Frame(ventana, bg=header_bg, height=90)
     header.pack(fill="x", side="top")
@@ -58,6 +58,7 @@ class DatabaseManager:
                     dpi TEXT NOT NULL,
                     tipo_multa TEXT NOT NULL,
                     detalle_otro TEXT,
+                    monto REAL NOT NULL DEFAULT 0,
                     estado TEXT NOT NULL DEFAULT 'Vigente',
                     creado_por TEXT,
                     fecha_creacion TEXT
@@ -1404,7 +1405,7 @@ Información del Cliente:
         ttk.Button(top, text="🔁 Cambiar estado", style="Big.TButton",
                    command=self._cambiar_estado_seleccionado_admin).pack(side="left", padx=10)
 
-        cols = ("id", "nombre", "dpi", "tipo", "detalle", "estado", "creado_por", "fecha")
+        cols = ("id", "nombre", "dpi", "tipo", "detalle","monto", "estado", "creado_por", "fecha")
         self.admin_multas_tree = ttk.Treeview(self.content, columns=cols, show="headings", height=4)
 
         style.configure("Treeview", font=("Segoe UI", 10), rowheight=32)
@@ -1417,6 +1418,7 @@ Información del Cliente:
             ("tipo", "Tipo multa"),
             ("detalle", "Detalle (otro)"),
             ("estado", "Estado"),
+            ("monto", "Monto"),
             ("creado_por", "Creado por"),
             ("fecha", "Fecha")
         ]
@@ -1450,7 +1452,7 @@ Información del Cliente:
             rows = conn.execute("SELECT * FROM multas ORDER BY fecha_creacion DESC").fetchall()
         for r in rows:
             self.admin_multas_tree.insert("", "end", values=(r["id"], r["nombre_completo"], r["dpi"],
-                                                             r["tipo_multa"], r["detalle_otro"], r["estado"],
+                                                             r["tipo_multa"], r["detalle_otro"], r["monto"], r["estado"],
                                                              r["creado_por"], r["fecha_creacion"]))
 
     def _get_selected_multa(self, tree):
@@ -1465,9 +1467,10 @@ Información del Cliente:
             "dpi": vals[2],
             "tipo_multa": vals[3],
             "detalle_otro": vals[4],
-            "estado": vals[5],
-            "creado_por": vals[6],
-            "fecha_creacion": vals[7]
+            "monto": vals[5],
+            "estado": vals[6],
+            "creado_por": vals[7],
+            "fecha_creacion": vals[8]
         }
 
     def _ver_detalle_multa_admin(self):
@@ -1476,7 +1479,7 @@ Información del Cliente:
             messagebox.showinfo("Detalle", "Selecciona una multa para ver detalles.")
             return
         info = (f"ID: {sel['id']}\nNombre: {sel['nombre_completo']}\nDPI: {sel['dpi']}\n"
-                f"Tipo: {sel['tipo_multa']}\nDetalle (otro): {sel['detalle_otro']}\nEstado: {sel['estado']}\n"
+                f"Tipo: {sel['tipo_multa']}\nDetalle (otro): {sel['detalle_otro']}\nMonto: {sel['monto']}\nEstado: {sel['estado']}\n"
                 f"Creada por: {sel['creado_por']}\nFecha: {sel['fecha_creacion']}")
         messagebox.showinfo("Detalle de la multa", info)
 
@@ -1540,7 +1543,18 @@ class CocodesPanel:
         self.content = tk.Frame(self.ventana, bg="#F2F5F9")
         self.content.pack(fill="both", expand=True)
 
-        self._abrir_panel_multas()
+        self.bienvenida()
+    def bienvenida(self):
+        for w in self.content.winfo_children():
+            w.destroy()
+        tk.Label(self.content, text="Bienvenido al Panel del Cocode",
+                 font=("Segoe UI", 24, "bold"), bg="#F2F5F9", fg="#2D3A4A").pack(pady=60)
+        tk.Label(self.content, text=f"Usuario activo: 👤 {self.usuario_tipo}",
+                 font=("Segoe UI", 12), bg="#F2F5F9", fg="#58606A").pack(pady=(0, 20))
+
+        tk.Label(self.content, text="Use el submenú para acceder a las opciones del Cocode",
+                 font=("Segoe UI", 12), bg="#F2F5F9", fg="#58606A").pack()
+
 
     def cerrar_sesion(self):
         for widget in self.ventana.winfo_children():
@@ -1583,17 +1597,14 @@ class CocodesPanel:
         label_font = ("Segoe UI", 13)
         entry_font = ("Segoe UI", 12)
 
-        # Nombre completo
         tk.Label(frame, text="Nombre completo:", bg="#FFFFFF", font=label_font).grid(row=0, column=0, sticky="w", **pad)
         self.cm_nombre = ttk.Entry(frame, width=55, font=entry_font)
         self.cm_nombre.grid(row=0, column=1, **pad)
 
-        # DPI
         tk.Label(frame, text="DPI:", bg="#FFFFFF", font=label_font).grid(row=1, column=0, sticky="w", **pad)
         self.cm_dpi = ttk.Entry(frame, width=55, font=entry_font)
         self.cm_dpi.grid(row=1, column=1, **pad)
 
-        # Tipo de multa
         tk.Label(frame, text="Tipo de multa:", bg="#FFFFFF", font=label_font).grid(row=2, column=0, sticky="w", **pad)
         tipos = [
             "Daño a la infraestructura pública.",
@@ -1604,26 +1615,20 @@ class CocodesPanel:
             "Otro"
         ]
         self.cm_tipo = tk.StringVar()
-        cb_tipo = ttk.Combobox(frame, textvariable=self.cm_tipo, values=tipos, state="readonly", width=52,
-                               font=entry_font)
+        cb_tipo = ttk.Combobox(frame, textvariable=self.cm_tipo, values=tipos, state="readonly", width=52, font=entry_font)
         cb_tipo.grid(row=2, column=1, **pad)
         cb_tipo.set(tipos[0])
         cb_tipo.bind("<<ComboboxSelected>>", self._tipo_seleccionado)
 
-        # Otro tipo
-        tk.Label(frame, text="Si eligió 'Otro', especifique:", bg="#FFFFFF", font=label_font).grid(row=3, column=0,
-                                                                                                   sticky="w", **pad)
+        tk.Label(frame, text="Si eligió 'Otro', especifique:", bg="#FFFFFF", font=label_font).grid(row=3, column=0, sticky="w", **pad)
         self.cm_otro = ttk.Entry(frame, width=55, font=entry_font)
         self.cm_otro.grid(row=3, column=1, **pad)
         self.cm_otro.configure(state="disabled")
 
-        # Botones
         btns = tk.Frame(frame, bg="#FFFFFF")
         btns.grid(row=4, column=0, columnspan=2, pady=16)
-        ttk.Button(btns, text="🧹 Limpiar", command=self._limpiar_crear_multa).grid(row=0, column=0, padx=10, ipadx=10,
-                                                                                   ipady=4)
-        ttk.Button(btns, text="💾 Guardar", command=self._guardar_multa).grid(row=0, column=1, padx=10, ipadx=10,
-                                                                             ipady=4)
+        ttk.Button(btns, text="🧹 Limpiar", command=self._limpiar_crear_multa).grid(row=0, column=0, padx=10, ipadx=10, ipady=4)
+        ttk.Button(btns, text="💾 Guardar", command=self._guardar_multa).grid(row=0, column=1, padx=10, ipadx=10, ipady=4)
 
     def _tipo_seleccionado(self, event=None):
         if self.cm_tipo.get() == "Otro":
@@ -1648,14 +1653,22 @@ class CocodesPanel:
         if not nombre or not dpi or not tipo:
             messagebox.showwarning("Validación", "Nombre completo, DPI y Tipo de multa son obligatorios.")
             return
-
+        montos = {
+            "Tala de árboles.": 6000,
+            "Indocumentación": 100,
+            "Contaminación ambiental.": 5000,
+            "Daño a la infraestructura pública.": 500,
+            "Daño al alumbrado público.": 500,
+            "Otro": 50
+        }
+        monto = montos.get(tipo, 0)
         fecha = datetime.now().isoformat(sep=" ", timespec="seconds")
 
         with DatabaseManager.connect() as conn:
             conn.execute("""
-                INSERT INTO multas (nombre_completo, dpi, tipo_multa, detalle_otro, estado, creado_por, fecha_creacion)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (nombre, dpi, tipo, detalle, "Vigente", self.usuario_tipo, fecha))
+                INSERT INTO multas (nombre_completo, dpi, tipo_multa, detalle_otro, monto, estado, creado_por, fecha_creacion)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (nombre, dpi, tipo, detalle, monto, "Vigente", self.usuario_tipo, fecha))
             conn.commit()
 
         messagebox.showinfo("Multa", "Multa creada y guardada correctamente. ✅")
@@ -1673,13 +1686,14 @@ class CocodesPanel:
         ttk.Button(top, text="🔄 Refrescar", command=self._cargar_multas_ver).pack(side="left", padx=6)
         ttk.Button(top, text="🔎 Ver detalle", command=self._ver_detalle_multa_ver).pack(side="left", padx=6)
 
-        cols = ("id","nombre","dpi","tipo","detalle","estado","creado_por","fecha")
+        cols = ("id", "nombre", "dpi", "tipo", "detalle","monto", "estado", "creado_por", "fecha")
         self.ver_tree = ttk.Treeview(parent, columns=cols, show="headings")
-        headings = [("id","ID"),("nombre","Nombre completo"),("dpi","DPI"),("tipo","Tipo multa"),
-                    ("detalle","Detalle (otro)"),("estado","Estado"),("creado_por","Creado por"),("fecha","Fecha")]
+        headings = [("id", "ID"), ("nombre", "Nombre completo"), ("dpi", "DPI"), ("tipo", "Tipo multa"),
+                    ("detalle", "Detalle (otro)"),("monto","Monto (Q)"), ("estado", "Estado"), ("creado_por", "Creado por"),
+                    ("fecha", "Fecha")]
         for col, heading in headings:
             self.ver_tree.heading(col, text=heading)
-            self.ver_tree.column(col, width=120 if col not in ("nombre","detalle") else 220, anchor="w")
+            self.ver_tree.column(col, width=120 if col not in ("nombre", "detalle") else 220, anchor="w")
         self.ver_tree.pack(fill="both", expand=True, padx=12, pady=12)
 
         self._cargar_multas_ver()
@@ -1691,7 +1705,7 @@ class CocodesPanel:
             rows = conn.execute("SELECT * FROM multas ORDER BY fecha_creacion DESC").fetchall()
         for r in rows:
             self.ver_tree.insert("", "end", values=(r["id"], r["nombre_completo"], r["dpi"],
-                                                    r["tipo_multa"], r["detalle_otro"],
+                                                    r["tipo_multa"], r["detalle_otro"],r["monto"],
                                                     r["estado"], r["creado_por"], r["fecha_creacion"]))
 
     def _ver_detalle_multa_ver(self):
@@ -1700,7 +1714,7 @@ class CocodesPanel:
             messagebox.showinfo("Detalle", "Selecciona una multa para ver detalle.")
             return
         info = (f"ID: {sel['id']}\nNombre: {sel['nombre_completo']}\nDPI: {sel['dpi']}\n"
-                f"Tipo: {sel['tipo_multa']}\nDetalle (otro): {sel['detalle_otro']}\nEstado: {sel['estado']}\n"
+                f"Tipo: {sel['tipo_multa']}\nDetalle (otro): {sel['detalle_otro']}\nMonto: {sel['monto']}\nEstado: {sel['estado']}\n"
                 f"Creada por: {sel['creado_por']}\nFecha: {sel['fecha_creacion']}")
         messagebox.showinfo("Detalle de la multa", info)
 
@@ -1711,12 +1725,13 @@ class CocodesPanel:
         ttk.Button(top, text="✏️ Editar seleccionado", command=self._editar_seleccionado).pack(side="left", padx=6)
         ttk.Button(top, text="🗑️ Eliminar seleccionado", command=self._eliminar_seleccionado).pack(side="left", padx=6)
 
-        cols = ("id","nombre","dpi","tipo","detalle","estado","creado_por","fecha")
+        cols = ("id", "nombre", "dpi", "tipo", "detalle","monto", "estado", "creado_por", "fecha")
         self.modi_tree = ttk.Treeview(parent, columns=cols, show="headings")
-        for col, heading in [("id","ID"),("nombre","Nombre completo"),("dpi","DPI"),("tipo","Tipo multa"),
-                             ("detalle","Detalle (otro)"),("estado","Estado"),("creado_por","Creado por"),("fecha","Fecha")]:
+        for col, heading in [("id", "ID"), ("nombre", "Nombre completo"), ("dpi", "DPI"), ("tipo", "Tipo multa"),
+                             ("detalle", "Detalle (otro)"),("monto","Monto (Q)"), ("estado", "Estado"), ("creado_por", "Creado por"),
+                             ("fecha", "Fecha")]:
             self.modi_tree.heading(col, text=heading)
-            self.modi_tree.column(col, width=120 if col not in ("nombre","detalle") else 220, anchor="w")
+            self.modi_tree.column(col, width=120 if col not in ("nombre", "detalle") else 220, anchor="w")
         self.modi_tree.pack(fill="both", expand=True, padx=12, pady=12)
 
         self._cargar_multas_modificar()
@@ -1728,7 +1743,7 @@ class CocodesPanel:
             rows = conn.execute("SELECT * FROM multas ORDER BY fecha_creacion DESC").fetchall()
         for r in rows:
             self.modi_tree.insert("", "end", values=(r["id"], r["nombre_completo"], r["dpi"],
-                                                     r["tipo_multa"], r["detalle_otro"], r["estado"],
+                                                     r["tipo_multa"], r["detalle_otro"],r["monto"], r["estado"],
                                                      r["creado_por"], r["fecha_creacion"]))
 
     def _get_selected_from_tree(self, tree):
@@ -1743,9 +1758,10 @@ class CocodesPanel:
             "dpi": vals[2],
             "tipo_multa": vals[3],
             "detalle_otro": vals[4],
-            "estado": vals[5],
-            "creado_por": vals[6],
-            "fecha_creacion": vals[7]
+            "monto": vals[5],
+            "estado": vals[6],
+            "creado_por": vals[7],
+            "fecha_creacion": vals[8]
         }
 
     def _editar_seleccionado(self):
@@ -1794,11 +1810,20 @@ class CocodesPanel:
             if not nuevo_nom or not nuevo_dpi or not nuevo_tipo:
                 messagebox.showwarning("Validación", "Nombre, DPI y Tipo son obligatorios.")
                 return
+            montos = {
+                "Tala de árboles.": 6000,
+                "Indocumentación": 100,
+                "Contaminación ambiental.": 5000,
+                "Daño a la infraestructura pública.": 500,
+                "Daño al alumbrado público.": 500,
+                "Otro": 50
+            }
+            nuevo_monto = montos.get(nuevo_tipo, 0)
             with DatabaseManager.connect() as conn:
                 conn.execute("""
-                    UPDATE multas SET nombre_completo=?, dpi=?, tipo_multa=?, detalle_otro=?
+                    UPDATE multas SET nombre_completo=?, dpi=?, tipo_multa=?, detalle_otro=?, monto=?
                     WHERE id = ?
-                """, (nuevo_nom, nuevo_dpi, nuevo_tipo, nuevo_otro, sel["id"]))
+                """, (nuevo_nom, nuevo_dpi, nuevo_tipo, nuevo_otro,nuevo_monto, sel["id"]))
                 conn.commit()
             messagebox.showinfo("Editar", "Multa actualizada correctamente.")
             win.destroy()
@@ -1815,15 +1840,15 @@ class CocodesPanel:
         if not sel:
             messagebox.showinfo("Eliminar", "Selecciona una multa para eliminar.")
             return
-        if messagebox.askyesno("Eliminar", f"¿Eliminar la multa ID {sel['id']}?"):
-            with DatabaseManager.connect() as conn:
-                conn.execute("DELETE FROM multas WHERE id = ?", (sel["id"],))
-                conn.commit()
-            messagebox.showinfo("Eliminar", "Multa eliminada.")
-            self._cargar_multas_modificar()
-            self._cargar_multas_ver()
+        if not messagebox.askyesno("Confirmar", f"¿Seguro que deseas eliminar la multa de {sel['nombre_completo']}?"):
+            return
+        with DatabaseManager.connect() as conn:
+            conn.execute("DELETE FROM multas WHERE id=?", (sel["id"],))
+            conn.commit()
+        messagebox.showinfo("Eliminar", "Multa eliminada correctamente.")
+        self._cargar_multas_modificar()
+        self._cargar_multas_ver()
 
-# Panel LectorMultas
 class LectorMultasPanel:
     def __init__(self, ventana, app, usuario="LectorMultas", header_bg="#F3F3F4"):
         self.ventana = ventana
@@ -1855,7 +1880,18 @@ class LectorMultasPanel:
         self.content = tk.Frame(self.ventana, bg="#F2F5F9")
         self.content.pack(fill="both", expand=True)
 
-        self._abrir_ver_multas()
+        self.bienvenida3()
+    def bienvenida3(self):
+        for w in self.content.winfo_children():
+            w.destroy()
+        tk.Label(self.content, text="Bienvenido al Panel del lector de multas",
+                 font=("Segoe UI", 24, "bold"), bg="#F2F5F9", fg="#2D3A4A").pack(pady=60)
+        tk.Label(self.content, text=f"Usuario activo: 👤 {self.usuario}",
+                 font=("Segoe UI", 12), bg="#F2F5F9", fg="#58606A").pack(pady=(0, 20))
+
+        tk.Label(self.content, text="Use el submenú para acceder a las opciones del lector de multas",
+                 font=("Segoe UI", 12), bg="#F2F5F9", fg="#58606A").pack()
+
 
     def cerrar_sesion(self):
         for widget in self.ventana.winfo_children():
@@ -1917,6 +1953,7 @@ class LectorMultasPanel:
             "creado_por": vals[6],
             "fecha_creacion": vals[7]
         }
+
 #panel de lector de agua
 class LectorAguaPanel:
     TARIFA_POR_M3 = 5.0
