@@ -59,11 +59,20 @@ class DatabaseManager:
                     tipo_multa TEXT NOT NULL,
                     detalle_otro TEXT,
                     monto REAL NOT NULL DEFAULT 0,
+                    avisos INTEGER NOT NULL DEFAULT 0,
                     estado TEXT NOT NULL DEFAULT 'Vigente',
                     creado_por TEXT,
                     fecha_creacion TEXT
                 );
             """)
+            try:
+                conn.execute("ALTER TABLE multas ADD COLUMN avisos INTEGER NOT NULL DEFAULT 0;")
+            except Exception as e:
+                # Si ya existe, no pasa nada
+                if "duplicate column name" not in str(e).lower():
+                    print("Error al agregar columna 'avisos':", e)
+
+            conn.commit()
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS lecturas_agua (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1868,6 +1877,7 @@ class LectorMultasPanel:
 
         menu_bar = tk.Menu(self.ventana)
         self.ventana.config(menu=menu_bar)
+
         menu_multas = tk.Menu(menu_bar, tearoff=0)
         menu_multas.add_command(label="🔎 Ver Multas", command=self._abrir_ver_multas)
         menu_bar.add_cascade(label="Multas", menu=menu_multas)
@@ -1881,6 +1891,7 @@ class LectorMultasPanel:
         self.content.pack(fill="both", expand=True)
 
         self.bienvenida3()
+
     def bienvenida3(self):
         for w in self.content.winfo_children():
             w.destroy()
@@ -1888,10 +1899,8 @@ class LectorMultasPanel:
                  font=("Segoe UI", 24, "bold"), bg="#F2F5F9", fg="#2D3A4A").pack(pady=60)
         tk.Label(self.content, text=f"Usuario activo: 👤 {self.usuario}",
                  font=("Segoe UI", 12), bg="#F2F5F9", fg="#58606A").pack(pady=(0, 20))
-
         tk.Label(self.content, text="Use el submenú para acceder a las opciones del lector de multas",
                  font=("Segoe UI", 12), bg="#F2F5F9", fg="#58606A").pack()
-
 
     def cerrar_sesion(self):
         for widget in self.ventana.winfo_children():
@@ -1901,31 +1910,44 @@ class LectorMultasPanel:
     def _abrir_ver_multas(self):
         for w in self.content.winfo_children():
             w.destroy()
+
         top = tk.Frame(self.content, bg="#FFFFFF")
         top.pack(fill="x", padx=12, pady=12)
+
         ttk.Button(top, text="🔄 Refrescar", command=self._cargar_multas).pack(side="left", padx=6)
         ttk.Button(top, text="🔎 Ver detalle", command=self._ver_detalle).pack(side="left", padx=6)
+        ttk.Button(top, text="⚠️ Hacer aviso", command=self._hacer_aviso).pack(side="left", padx=6)
 
-        cols = ("id","nombre","dpi","tipo","detalle","estado","creado_por","fecha")
+        cols = ("id", "nombre", "dpi", "tipo", "detalle", "estado", "creado_por", "fecha", "avisos", "monto")
         self.tree = ttk.Treeview(self.content, columns=cols, show="headings")
-        headings = [("id","ID"),("nombre","Nombre completo"),("dpi","DPI"),("tipo","Tipo multa"),
-                    ("detalle","Detalle (otro)"),("estado","Estado"),("creado_por","Creado por"),("fecha","Fecha")]
+
+        headings = [
+            ("id", "ID"), ("nombre", "Nombre completo"), ("dpi", "DPI"),
+            ("tipo", "Tipo multa"), ("detalle", "Detalle (otro)"), ("estado", "Estado"),
+            ("creado_por", "Creado por"), ("fecha", "Fecha"), ("avisos", "Avisos"), ("monto", "Monto (Q)")
+        ]
+
         for col, heading in headings:
             self.tree.heading(col, text=heading)
-            self.tree.column(col, width=120 if col not in ("nombre","detalle") else 220, anchor="w")
-        self.tree.pack(fill="both", expand=True, padx=12, pady=12)
+            self.tree.column(col, width=120 if col not in ("nombre", "detalle") else 220, anchor="w")
 
+        self.tree.pack(fill="both", expand=True, padx=12, pady=12)
         self._cargar_multas()
 
     def _cargar_multas(self):
         for i in self.tree.get_children():
             self.tree.delete(i)
+
         with DatabaseManager.connect() as conn:
+            # Asegúrate de que la tabla 'multas' tenga las columnas 'avisos' y 'monto'
             rows = conn.execute("SELECT * FROM multas ORDER BY fecha_creacion DESC").fetchall()
+
         for r in rows:
-            self.tree.insert("", "end", values=(r["id"], r["nombre_completo"], r["dpi"],
-                                                r["tipo_multa"], r["detalle_otro"], r["estado"],
-                                                r["creado_por"], r["fecha_creacion"]))
+            self.tree.insert("", "end", values=(
+                r["id"], r["nombre_completo"], r["dpi"], r["tipo_multa"],
+                r["detalle_otro"], r["estado"], r["creado_por"], r["fecha_creacion"],
+                r.get("avisos", 0), r.get("monto", 0.00)
+            ))
 
     def _ver_detalle(self):
         sel = self._get_selected(self.tree)
@@ -1933,9 +1955,35 @@ class LectorMultasPanel:
             messagebox.showinfo("Detalle", "Selecciona una multa para ver detalle.")
             return
         info = (f"ID: {sel['id']}\nNombre: {sel['nombre_completo']}\nDPI: {sel['dpi']}\n"
-                f"Tipo: {sel['tipo_multa']}\nDetalle (otro): {sel['detalle_otro']}\nEstado: {sel['estado']}\n"
-                f"Creada por: {sel['creado_por']}\nFecha: {sel['fecha_creacion']}")
+                f"Tipo: {sel['tipo_multa']}\nDetalle (otro): {sel['detalle_otro']}\n"
+                f"Estado: {sel['estado']}\nCreada por: {sel['creado_por']}\n"
+                f"Fecha: {sel['fecha_creacion']}\nAvisos: {sel['avisos']}\nMonto: Q{sel['monto']}")
         messagebox.showinfo("Detalle de la multa", info)
+
+    def _hacer_aviso(self):
+        sel = self._get_selected(self.tree)
+        if not sel:
+            messagebox.showwarning("Aviso", "Selecciona una multa para hacer un aviso.")
+            return
+
+        multa_id = sel["id"]
+        with DatabaseManager.connect() as conn:
+            multa = conn.execute("SELECT avisos, monto FROM multas WHERE id = ?", (multa_id,)).fetchone()
+            avisos = multa["avisos"] + 1
+            monto = multa["monto"]
+
+            if avisos >= 3:
+                monto += 10  # Aplica mora extra
+                avisos = 0   # Reinicia contador de avisos
+                conn.execute("UPDATE multas SET monto = ?, avisos = ? WHERE id = ?", (monto, avisos, multa_id))
+                messagebox.showinfo("Mora aplicada", f"Se aplicó una mora adicional de Q10. Nuevo monto: Q{monto:.2f}")
+            else:
+                conn.execute("UPDATE multas SET avisos = ? WHERE id = ?", (avisos, multa_id))
+                messagebox.showinfo("Aviso registrado", f"Aviso número {avisos} para esta multa.")
+
+            conn.commit()
+
+        self._cargar_multas()
 
     def _get_selected(self, tree):
         sel = tree.selection()
@@ -1951,8 +1999,11 @@ class LectorMultasPanel:
             "detalle_otro": vals[4],
             "estado": vals[5],
             "creado_por": vals[6],
-            "fecha_creacion": vals[7]
+            "fecha_creacion": vals[7],
+            "avisos": vals[8],
+            "monto": vals[9],
         }
+
 
 #panel de lector de agua
 class LectorAguaPanel:
