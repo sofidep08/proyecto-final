@@ -6,7 +6,6 @@ import tkinter.font as tkfont
 from datetime import datetime, date
 
 DB_NAME = "municipalidad.db"
-
 def _add_header_footer(ventana, title_text, usuario_text, header_bg):
     header = tk.Frame(ventana, bg=header_bg, height=90)
     header.pack(fill="x", side="top")
