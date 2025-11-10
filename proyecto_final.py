@@ -5,7 +5,6 @@ from datetime import datetime,date,time
 from database_manager import DatabaseManager, inicializar_credenciales, verificar_credencial
 import os
 
-
 DB_NAME = "municipalidad.db"
 
 
@@ -84,17 +83,18 @@ class DatabaseManager:
                     salario REAL NOT NULL
                 );
             """)
+            conn.execute("DROP TABLE IF EXISTS boletas_ornato;")
             conn.execute("""
-            CREATE TABLE IF NOT EXISTS boletas_ornato (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ciudadano_id INTEGER NOT NULL,
-                monto REAL NOT NULL,
-                con_multa INTEGER NOT NULL DEFAULT 0,
-                fecha_pago TEXT NOT NULL,
-                anio INTEGER NOT NULL,
-                FOREIGN KEY (ciudadano_id) REFERENCES ciudadanos_ornato(id)
-            );
-            """)
+                    CREATE TABLE IF NOT EXISTS boletas_ornato (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ciudadano_id INTEGER NOT NULL,
+                        monto REAL NOT NULL,
+                        con_multa INTEGER NOT NULL DEFAULT 0,
+                        fecha_pago TEXT NOT NULL,
+                        anio INTEGER NOT NULL,
+                        FOREIGN KEY (ciudadano_id) REFERENCES ciudadanos_ornato(id)
+                    );
+                """)
             conn.commit()
 
 def inicializar_credenciales():
@@ -1077,7 +1077,6 @@ class AdminPanel:
 
             messagebox.showinfo("Pago registrado", f"✅ Boleta pagada correctamente.\nMonto: Q{monto:.2f}")
             self.btn_pagar_boleta.config(state="disabled")
-            self._cargar_boletas_ornato()
 
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo registrar el pago: {e}")
@@ -1098,11 +1097,11 @@ class AdminPanel:
 
         ttk.Button(frame, text="🔄 Refrescar lista", command=self._cargar_ciudadanos_ornato).pack(pady=10)
 
-        cols = ("id", "nombre", "dpi", "nit", "tiene_nit", "salario")
+        cols = ("id", "nombre", "dpi", "nit", "salario", "estado")
         self.tree_ciudadanos = ttk.Treeview(frame, columns=cols, show="headings", height=15)
         self.tree_ciudadanos.pack(fill="both", expand=True)
 
-        for c, t in zip(cols, ["ID", "Nombre", "DPI", "NIT", "Tiene NIT", "Salario (Q)"]):
+        for c, t in zip(cols, ["ID", "Nombre", "DPI", "NIT", "Salario (Q)", "Estado"]):
             self.tree_ciudadanos.heading(c, text=t)
             self.tree_ciudadanos.column(c, width=140, anchor="center")
 
@@ -1115,8 +1114,26 @@ class AdminPanel:
         for i in self.tree_ciudadanos.get_children():
             self.tree_ciudadanos.delete(i)
 
+        anio_actual = datetime.now().year
+
         with DatabaseManager.connect() as conn:
-            rows = conn.execute("SELECT * FROM ciudadanos_ornato ORDER BY id DESC").fetchall()
+            rows = conn.execute(f"""
+                SELECT 
+                    c.id,
+                    c.nombre,
+                    c.dpi,
+                    c.nit,
+                    c.salario,
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1 FROM boletas_ornato b 
+                            WHERE b.ciudadano_id = c.id AND b.anio = ?
+                        ) THEN '✅ Pagó'
+                        ELSE '❌ No ha pagado'
+                    END AS estado
+                FROM ciudadanos_ornato c
+                ORDER BY c.id DESC
+            """, (anio_actual,)).fetchall()
 
         for r in rows:
             self.tree_ciudadanos.insert("", "end", values=(
@@ -1124,7 +1141,8 @@ class AdminPanel:
                 r["nombre"],
                 r["dpi"],
                 r["nit"] if r["nit"] else "—",
-                f"Q{r['salario']:.2f}"
+                f"Q{r['salario']:.2f}",
+                r["estado"]
             ))
 
     def _abrir_panel_agua(self):
